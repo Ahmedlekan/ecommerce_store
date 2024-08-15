@@ -1,9 +1,9 @@
-import { reviews } from "../constant"
-import ReviewCard from "../component/ReviewCard"
+import { reviews } from "../../constant"
+import ReviewCard from "../ReviewCard"
 
 const CustomerReviews = () => {
   return (
-    <section className="max-container">
+    <section className="container py-10">
       <h3 className="font-bold font-palanquin text-4xl text-center"> 
         What Our <span className="text-coral-red"> Customers </span> Says? 
       </h3>

@@ -1,18 +1,17 @@
 import {useState} from "react"
-
-import {arrowRight} from "../assets/icons"
-import Button from "../component/Button"
-import { statistics, shoes } from "../constant"
-import {bigShoe1} from "../assets/images"
-import ShoeCard from "../component/ShoeCard"
+import {arrowRight} from "../../assets/icons"
+import Button from "../Button"
+import { statistics, shoes } from "../../constant"
+import {bigShoe1} from "../../assets/images"
+import ShoeCard from "../ShoeCard"
 
 const Hero = () => {
 
   const [bigShoeImg, setBigShoeImg] = useState(bigShoe1)
   
   return (
-    <section id='home' className="w-full flex xl:flex-row flex-col 
-      justify-center min-h-screen max-container gap-10"
+    <section className="container w-full flex xl:flex-row flex-col 
+      justify-center min-h-screen gap-10"
       >
         <div className="relative xl:w-2/5 flex 
         flex-col justify-center items-start w-full max-xl:padding-x pt-28">
@@ -24,8 +23,8 @@ const Hero = () => {
               The New Arrival 
             </span> 
             <br />
-            <span className="text-coral-red mt-3 inline-block"> Nike </span>
-            Shoes
+            <span className="text-coral-red mt-3 inline-block"> Apple </span>
+            Products
           </h1>
           <p className="text-slate-gray font-montserrat 
             text-lg leading-8 mt-6 mb-14 sm:max-w-sm">

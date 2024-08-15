@@ -1,12 +1,21 @@
-import {Hero, PopularProducts, SuperQuality, Services, 
-  SpecialOffer, CustomerReviews, Subscribe, Footer} from "./section"
-import Navbar from "./component/Navbar"
+import HomePage from "./Pages/HomePage"
+import Layout from "./component/Layout"
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
+
 
 function App() {
 
   return (
     <div>
-      <Navbar />
+
+      <Router>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<HomePage />} />
+          </Route>
+        </Routes>
+      </Router>
+      {/* <Navbar />
 
       <section className="xl:padding-l wide:padding-r padding-b">
         <Hero />
@@ -15,6 +24,7 @@ function App() {
       <section className="padding">
         <PopularProducts />
       </section>
+      
       <section className="padding">
         <SuperQuality />
       </section>
@@ -32,7 +42,7 @@ function App() {
       </section>
       <section className="padding-x padding-t bg-black pb-8">
         <Footer />
-      </section>
+      </section> */}
     </div>
   )
 }
