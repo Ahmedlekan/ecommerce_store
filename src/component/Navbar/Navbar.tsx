@@ -35,6 +35,7 @@ const Navbar = () => {
               </div>
             </div>
           </Link>
+
           <Link to="/">
             <div className="flex justify-center items-center gap-4">
               <img src={wishlist} className=" h-10 w-10"/>
@@ -44,15 +45,19 @@ const Navbar = () => {
               </div>
             </div>
           </Link>
-          <Link to="/">
+          
             <div className="flex justify-center items-center gap-4">
               <img src={user}/>
               <div className=" flex flex-col items-center">
-                <p>Login</p>
-                <p>My Account</p>
+                <Link to="/login">
+                  <p>Login</p>
+                </Link>
+                <Link to="/my-account">
+                  <p>My Account</p>
+                </Link>
               </div>
             </div>
-          </Link>
+
           <Link to="/">
             <div className="flex justify-center items-center gap-4">
             <img src={cart}/>
