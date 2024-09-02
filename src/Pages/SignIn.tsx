@@ -1,19 +1,36 @@
 import {useForm} from "react-hook-form"
-// import * as apliClient from "../api-client"
+import * as apiClient from "../api-client"
 import { useAppContext } from "../contexts/AppContext";
-import {Link} from "react-router-dom";
+import {Link, useNavigate} from "react-router-dom";
+import { useMutation, useQueryClient} from "@tanstack/react-query";
 
-export type RegisterFormDataprops = {
+export type LoginFormDataprops = {
     email: string;
     password: string;
-  };
+};
 
 const SignIn = () => {
-    const {register, watch, handleSubmit, formState:{errors}} = useForm<RegisterFormDataprops>()
+    
+    const {register, handleSubmit, formState:{errors}} = useForm<LoginFormDataprops>()
+    const queryClient = useQueryClient()
     const {showToast} = useAppContext()
+    const navigate = useNavigate()
+
+    const mutation = useMutation({
+        mutationFn: apiClient.signIn,
+        onSuccess: async ()=> {
+            showToast({ message: "Login Successful", type: "SUCCESS" })
+            await queryClient.invalidateQueries({ queryKey: ["validateToken"] })
+            navigate("/")
+        },
+        onError: (error: Error)=> {
+            showToast({ message: error.message, type: "ERROR"})
+        }
+    })
+    
 
     const onSubmit = handleSubmit((data)=>{
-        
+        mutation.mutate(data)
     })
 
   return (

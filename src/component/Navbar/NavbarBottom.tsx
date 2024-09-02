@@ -17,16 +17,16 @@ const NavbarBottom = () => {
         </div>
 
         <div className="flex items-center space-x-4 text-white">
-          <a href="/favorites" className="hover:text-yellow-500">
+          <a href="/" className="hover:text-yellow-500">
            HOME
           </a>
-          <a href="/login" className="hover:text-yellow-500">
+          <a href="/products" className="hover:text-yellow-500">
             OUR STORES
           </a>
-          <a href="/cart" className="hover:text-yellow-500">
+          <a href="/" className="hover:text-yellow-500">
             BLOGS
           </a>
-          <a href="/cart" className="hover:text-yellow-500">
+          <a href="/" className="hover:text-yellow-500">
             CONTACTS
           </a>
         </div>

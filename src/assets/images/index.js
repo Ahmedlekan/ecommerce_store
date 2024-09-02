@@ -3,7 +3,7 @@ import bigShoe2 from './big-shoe2.png'
 import bigShoe3 from './big-shoe3.png'
 import compare from "./compare.svg"
 import wishlist from "./wish.svg"
-import user from "./user.svg"
+import userImg from "./user.svg"
 import cart from "./cart.svg"
 import blog1 from "./blog1.jpg"
 import acc from "./acc.jpg"
@@ -32,7 +32,7 @@ export {
     bigShoe2,
     bigShoe3,
     blog1,
-    user,
+    userImg,
     cart,
     acc,
     customer1,

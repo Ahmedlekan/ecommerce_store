@@ -1,9 +1,44 @@
 
 import { Link } from "react-router-dom"
 import { FaSearch } from 'react-icons/fa';
-import {compare, wishlist, user, cart} from "../../assets/images"
+import {compare, wishlist, userImg, cart} from "../../assets/images"
+import { useAppContext } from "../../contexts/AppContext";
+import * as apiClient from "../../api-client"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useDispatch, useSelector } from 'react-redux';
+import { UserState } from "../../store/userSlice";
+import { setUserDetails } from "../../store/userSlice";
+import ROLE from "../../constant/role";
+// import { FaRegCircleUser } from "react-icons/fa6";
+
+interface RootState {
+  user: UserState;
+}
 
 const Navbar = () => {
+  const user = useSelector((state: RootState) => state?.user?.user)
+  const dispatch = useDispatch()
+  
+  const {isLoggedIn} = useAppContext()
+  const {showToast} = useAppContext()
+  const queryClient = useQueryClient()
+
+  const mutation = useMutation({
+      mutationFn: apiClient.signOut,
+      onSuccess: async ()=>{
+          await queryClient.invalidateQueries({queryKey: ["validateToken"]});
+          dispatch(setUserDetails(null))
+          showToast({ message: "Signed Out!", type: "SUCCESS" });
+      },
+      onError: (error: Error) => {
+          showToast({ message: error.message, type: "ERROR" });
+        },
+  })
+
+  const handleClick = ()=>{
+      mutation.mutate()
+  }
+
   return (
     <header className=" bg-coral-red py-3 px-4">
       
@@ -26,7 +61,7 @@ const Navbar = () => {
 
         <ul className=" flex justify-center items-center gap-16 max-lg:hidden text-white">
           
-          <Link to="/">
+          <Link to="/compare">
             <div className="flex justify-center items-center gap-4">
               <img src={compare}/>
               <div className=" flex flex-col items-center">
@@ -36,7 +71,7 @@ const Navbar = () => {
             </div>
           </Link>
 
-          <Link to="/">
+          <Link to="/favorite">
             <div className="flex justify-center items-center gap-4">
               <img src={wishlist} className=" h-10 w-10"/>
               <div className=" flex flex-col items-center">
@@ -45,20 +80,52 @@ const Navbar = () => {
               </div>
             </div>
           </Link>
-          
-            <div className="flex justify-center items-center gap-4">
-              <img src={user}/>
-              <div className=" flex flex-col items-center">
-                <Link to="/login">
-                  <p>Login</p>
-                </Link>
-                <Link to="/my-account">
-                  <p>My Account</p>
-                </Link>
-              </div>
-            </div>
 
-          <Link to="/">
+          {isLoggedIn ? 
+            (<div className="flex justify-center items-center">
+                <div>
+                    {
+                      user?.profilePic ? (
+                        <img src={user?.profilePic} className='w-10 h-10 rounded-full' alt={user?.name} />
+                      ) : (
+                        <img src={userImg} alt="" />
+                      )
+                    }
+                </div>
+
+                <div className=" flex flex-col items-center">
+                  <button
+                    onClick={handleClick}
+                    className="px-3 hover:text-cyan-950 "
+                  >
+                    Sign Out
+                  </button>
+
+                  {user?.role === ROLE.ADMIN && (
+                    <Link to={"/admin-panel/all-products"}>
+                    <div className=" px-3 hover:text-cyan-950 "
+                    >
+                      Admin Panel
+                    </div>
+                  </Link>
+                  )}
+            
+                </div>
+              </div>
+            ) 
+            : (
+              <div className="flex justify-center items-center gap-4">
+                <div className=" flex items-center">
+                  <Link to="/login">
+                    <p>Login</p>
+                  </Link>
+                  <img src={userImg} alt="" />
+                </div>
+              </div>
+            )
+          }
+
+          <Link to="/cart">
             <div className="flex justify-center items-center gap-4">
             <img src={cart}/>
               <div className=" flex flex-col items-center">
