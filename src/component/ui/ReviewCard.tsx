@@ -1,4 +1,4 @@
-import {star} from "../assets/icons"
+import {star} from "../../assets/icons"
 
 interface ReviewCardPArops {
     imgURL?: string;

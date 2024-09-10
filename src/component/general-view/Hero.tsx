@@ -1,9 +1,9 @@
 import {useState} from "react"
 import {arrowRight} from "../../assets/icons"
-import Button from "../Button"
+import Button from "../ui/Button"
 import { statistics, shoes } from "../../constant"
 import {bigShoe1} from "../../assets/images"
-import ShoeCard from "../ShoeCard"
+import ShoeCard from "../ui/ShoeCard"
 
 const Hero = () => {
 

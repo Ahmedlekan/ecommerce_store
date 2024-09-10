@@ -3,31 +3,20 @@ import { Link } from "react-router-dom"
 import { FaSearch } from 'react-icons/fa';
 import {compare, wishlist, userImg, cart} from "../../assets/images"
 import { useAppContext } from "../../contexts/AppContext";
-import * as apiClient from "../../api-client"
+import * as authClient from "../../apiClient/auth"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { useDispatch, useSelector } from 'react-redux';
-import { UserState } from "../../store/userSlice";
-import { setUserDetails } from "../../store/userSlice";
 import ROLE from "../../constant/role";
-// import { FaRegCircleUser } from "react-icons/fa6";
-
-interface RootState {
-  user: UserState;
-}
 
 const Navbar = () => {
-  const user = useSelector((state: RootState) => state?.user?.user)
-  const dispatch = useDispatch()
   
-  const {isLoggedIn} = useAppContext()
-  const {showToast} = useAppContext()
+  const {isLoggedIn, showToast, user, setUser} = useAppContext()
   const queryClient = useQueryClient()
 
   const mutation = useMutation({
-      mutationFn: apiClient.signOut,
+      mutationFn: authClient.signOut,
       onSuccess: async ()=>{
           await queryClient.invalidateQueries({queryKey: ["validateToken"]});
-          dispatch(setUserDetails(null))
+          setUser(null)
           showToast({ message: "Signed Out!", type: "SUCCESS" });
       },
       onError: (error: Error) => {
@@ -134,12 +123,8 @@ const Navbar = () => {
               </div>
             </div>
           </Link>
-        
         </ul>
 
-        {/* <div className="hidden max-lg:block">
-          <img src={hamburger} width={25} height={25} alt="hamburger" />
-        </div> */}
       </nav>
     </header>
   )

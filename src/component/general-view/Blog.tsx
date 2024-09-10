@@ -1,6 +1,6 @@
 
 import { blogs } from '../../constant'
-import BlogCard from '../BlogCard'
+import BlogCard from '../ui/BlogCard'
 
 const Blog = () => {
   return (

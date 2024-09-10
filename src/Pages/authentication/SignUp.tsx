@@ -1,6 +1,6 @@
 import {useForm} from "react-hook-form"
-import * as apiClient from "../api-client"
-import { useAppContext } from "../contexts/AppContext";
+import * as userAapiClient from "../../apiClient/user"
+import { useAppContext } from "../../contexts/AppContext";
 import { useNavigate, Link} from "react-router-dom";
 import { useMutation, useQueryClient} from "@tanstack/react-query";
 
@@ -18,7 +18,7 @@ const Register = () => {
     const navigate = useNavigate()
 
     const mutation = useMutation({
-        mutationFn: apiClient.register,
+        mutationFn: userAapiClient.register,
         onSuccess: async ()=>{
             showToast({message:"Registration Success!", type: "SUCCESS"})
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] })

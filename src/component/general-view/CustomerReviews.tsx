@@ -1,5 +1,5 @@
 import { reviews } from "../../constant"
-import ReviewCard from "../ReviewCard"
+import ReviewCard from "../ui/ReviewCard"
 
 const CustomerReviews = () => {
   return (

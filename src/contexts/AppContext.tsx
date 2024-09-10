@@ -1,9 +1,8 @@
 import React, {createContext, useContext, useState, useEffect} from 'react'
 import Toast from '../component/Toast';
-import * as apiClient from "../api-client";
-import { useQuery } from '@tanstack/react-query'
-import { useDispatch } from 'react-redux';
-import { setUserDetails } from '../store/userSlice';
+import * as authApiClient from "../apiClient/auth";
+import * as userApiClient from "../apiClient/user";
+import { useQuery } from '@tanstack/react-query';
 import { UserType } from '../../../backend/src/shared/types';
 
 
@@ -16,7 +15,9 @@ type AppContextProps = {
     showToast: (toastMessage: ToastMessage)=> void
     isLoggedIn: boolean
     user: UserType | null;
-    setUserDetails: (userDetails: UserType) => void
+    isLoading: boolean
+    isError: boolean
+    setUser: (user: UserType | null) => void;
 }
 
 const AppContext = createContext<AppContextProps | undefined>(undefined)
@@ -25,31 +26,36 @@ export const AppContextProvider = ({children}:{children: React.ReactNode}) => {
 
     const [toast, setToast] = useState<ToastMessage | undefined>(undefined)
     const [user, setUser] = useState<UserType | null>(null);
-    const dispatch = useDispatch();
 
     const {isError} = useQuery({
         queryKey: ["validateToken"],
-        queryFn: apiClient.validateToken
+        queryFn: authApiClient.validateToken
     })
 
-    const {data: currentUser, isSuccess} = useQuery({
+    const {data: currentUser, isLoading, isSuccess} = useQuery({
       queryKey:["currentUser"],
-      queryFn: apiClient.fetchCurrentUser
+      queryFn: userApiClient.fetchCurrentUser,
     })
 
-      // Dispatch user details to the Redux store when the query succeeds
     useEffect(() => {
         if (isSuccess) {
-        dispatch(setUserDetails(currentUser));
+          console.log("Fetched currentUser:", currentUser);
+          if (currentUser) {
+            setUser(currentUser);
+          }
+        } else if (isError) {
+          console.log("Error fetching currentUser");
         }
-    }, [isSuccess,currentUser, dispatch])
+    }, [currentUser, isSuccess, isError]);
 
   return (
     <AppContext.Provider value={{
         showToast: (toastMessage) => setToast(toastMessage),
         isLoggedIn: !isError,
-        user, 
-        setUserDetails: (userDetails: UserType) => setUser(userDetails)
+        user,
+        setUser,
+        isLoading,
+        isError
     }}>
         {toast && (
             <Toast message={toast.message} type={toast.type} onClose={ () => setToast(undefined)} />

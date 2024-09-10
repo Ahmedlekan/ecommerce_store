@@ -1,4 +1,4 @@
-import Button from "../Button"
+import Button from "../ui/Button"
 import camera1 from "../../assets/images/camera1.jpg"
 
 const SuperQuality = () => {

@@ -1,6 +1,6 @@
 
 import { collection } from '../../constant'
-import CollectionCard from '../CollectionCard'
+import CollectionCard from '../ui/CollectionCard'
 
 const Collection = () => {
   return (
