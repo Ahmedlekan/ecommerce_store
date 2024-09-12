@@ -38,11 +38,8 @@ export const AppContextProvider = ({children}:{children: React.ReactNode}) => {
     })
 
     useEffect(() => {
-        if (isSuccess) {
-          console.log("Fetched currentUser:", currentUser);
-          if (currentUser) {
-            setUser(currentUser);
-          }
+        if (isSuccess && currentUser) {
+          setUser(currentUser);
         } else if (isError) {
           console.log("Error fetching currentUser");
         }

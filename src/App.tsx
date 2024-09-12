@@ -23,12 +23,8 @@ const AuthenticatedLayout = () => (
 
 function App() {
 
-  const {isLoggedIn, isLoading, user} = useAppContext()
+  const {isLoggedIn, isLoading} = useAppContext()
   if (isLoading) return <Skeleton className="w-[800] bg-black h-[600px]" />;
-
-  if(user){
-    console.log("UserName", user)
-  }
 
   return (
     <div>
