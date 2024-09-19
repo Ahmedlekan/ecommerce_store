@@ -1,46 +1,19 @@
-import ProductImageUpload from "../../component/admin-view/ProductImageUpload";
-import AdminProductTile from "../../component/admin-view/ProductTile";
+// import AdminProductTile from "../../component/admin-view/ProductTile";
 import CommonForm from "../../component/common/form";
 import Button from "../../component/ui/Button";
 import {Sheet,SheetContent,SheetHeader,SheetTitle} from "../../component/ui/Sheet"
 import { useAppContext } from "../../contexts/AppContext";
 import { useMutation } from "@tanstack/react-query";
 import * as adminApiClient from "../../apiClient/admin"
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useState } from "react";
 import { addProductFormElements } from "../../constant";
-
-export type initialFormDataProps = {
-  image: string[]
-  title: string
-  description: string
-  category: string
-  brand: string
-  price: number
-  salePrice: number
-  totalStock: number
-  averageReview: number
-};
-
-const initialFormData: initialFormDataProps = {
-  image: [],
-  title: "",
-  description: "",
-  category: "",
-  brand: "",
-  price: 0,
-  salePrice: 0,
-  totalStock: 0,
-  averageReview: 0,
-};
+import { initialFormDataProps } from "../../component/common/form";
 
 function AdminProducts() {
   const {showToast} = useAppContext()
 
   const [openCreateProductsDialog, setOpenCreateProductsDialog] = useState(false);
-  const [formData, setFormData] = useState<initialFormDataProps>(initialFormData);
-  // const [imageFile, setImageFile] = useState(null);
-  // const [uploadedImageUrl, setUploadedImageUrl] = useState("");
-  // const [imageLoadingState, setImageLoadingState] = useState(false);
+ 
   // const [currentEditedId, setCurrentEditedId] = useState(null);
   // const [productList, setProductList] = useState([]);
 
@@ -50,12 +23,14 @@ function AdminProducts() {
   
   const {mutate, isPending} = useMutation( {
     mutationFn: adminApiClient.addProduct,
-    onSuccess: async () => {
+    onSuccess: async (responseData) => {
+      console.log("Mutation Result:", responseData); 
       showToast({ message: "Product Saved!", type: "SUCCESS" });
-      },
-      onError: (error: Error) => {
-        showToast({ message: error.message, type: "ERROR" });
-      },
+    },
+
+    onError: (error: Error) => {
+      showToast({ message: error.message, type: "ERROR" });
+    },
   });
 
   const handleSave = (productFormData: FormData)=>{
@@ -93,21 +68,11 @@ function AdminProducts() {
         }}
       >
         <SheetContent side="right" className="overflow-auto bg-gray-100">
-          {/* <SheetHeader>
+          <SheetHeader>
             <SheetTitle>
-              {currentEditedId !== null ? "Edit Product" : "Add New Product"}
+              {/* {currentEditedId !== null ? "Edit Product" : "Add New Product"} */}
             </SheetTitle>
-          </SheetHeader> */}
-
-          {/* <ProductImageUpload
-            imageFile={imageFile}
-            setImageFile={setImageFile}
-            uploadedImageUrl={uploadedImageUrl}
-            setUploadedImageUrl={setUploadedImageUrl}
-            setImageLoadingState={setImageLoadingState}
-            imageLoadingState={imageLoadingState}
-            isEditMode={currentEditedId !== null}
-          /> */}
+          </SheetHeader>
 
           <div className="py-6">
             <CommonForm
@@ -115,8 +80,6 @@ function AdminProducts() {
               isLoading={isPending}
               // buttonText={currentEditedId !== null ? "Edit" : "Add"}
               formControls={addProductFormElements}
-              formData={formData}
-              setFormData={setFormData}
             />
           </div>
         </SheetContent>

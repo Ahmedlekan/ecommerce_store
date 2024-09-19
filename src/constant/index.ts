@@ -223,6 +223,7 @@ export const blogs = [
       componentType: "textarea",
       placeholder: "Enter product description",
     },
+    
     {
       label: "Category",
       name: "category",
