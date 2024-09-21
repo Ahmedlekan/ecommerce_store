@@ -1,20 +1,19 @@
 import ProductImageUpload from "../../component/admin-view/ProductImageUpload";
 import Button from "../../component/ui/Button";
 // import { addFeatureImage, getFeatureImages } from "@/store/common-slice";
-import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { useMutation, useQuery, useQueryClient  } from "@tanstack/react-query";
+import { useMutation, useQueryClient  } from "@tanstack/react-query";
 import * as commonApiClent from "../../apiClient/common/index"
 import { useAppContext } from "../../contexts/AppContext";
 import { FeatureType } from "../../../../backend/src/shared/types";
 
-function AdminDashboard() {
+type AdminDashboardProps = {
+  isLoading: boolean;
+}
+
+function AdminDashboard({isLoading} : AdminDashboardProps) {
+
   const queryClient = useQueryClient();
   const {showToast} = useAppContext()
-
-  const [imageFile, setImageFile] = useState<File | Blob | null>(null);
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>("");
-  const [imageLoadingState, setImageLoadingState] = useState<boolean>(false);
 
   // Mutation for adding a feature image
   const mutation = useMutation({
@@ -31,26 +30,26 @@ function AdminDashboard() {
   const onSubmit = (uploadedImageUrl: FeatureType)=>{
     mutation.mutate(uploadedImageUrl, {
       onSuccess: async ()=>{
-        setImageFile(null);
-        setUploadedImageUrl("");
+        // setImageFile(null);
+        // setUploadedImageUrl("");
       }
     })
   }
 
   // Fetch feature images using react-query
-  function useFeatureImages() {
-    const { data, isLoading, error } = useQuery({
-      queryKey: ["getFeatureImages"],
-      queryFn: commonApiClent.getFeatureImages
-    });
+  // function useFeatureImages() {
+  //   const { data, isLoading, error } = useQuery({
+  //     queryKey: ["getFeatureImages"],
+  //     queryFn: commonApiClent.getFeatureImages
+  //   });
 
-    return {
-      featureImages: data,
-      isLoading,
-      error,
-    };
+  //   return {
+  //     featureImages: data,
+  //     isLoading,
+  //     error,
+  //   };
 
-  }
+  // }
 
   // function handleUploadFeatureImage() {
   //   dispatch(addFeatureImage(uploadedImageUrl)).then((data) => {
@@ -70,16 +69,10 @@ function AdminDashboard() {
 
   return (
     <div>
-      <ProductImageUpload
-        imageFile={imageFile}
-        setImageFile={setImageFile}
-        uploadedImageUrl={uploadedImageUrl}
-        setUploadedImageUrl={setUploadedImageUrl}
-        setImageLoadingState={setImageLoadingState}
-        imageLoadingState={imageLoadingState}
-        isCustomStyling={true}
+      {/* <ProductImageUpload
+        isLoading={isLoading}
         // isEditMode={currentEditedId !== null}
-      />
+      /> */}
       
       {/* <Button onClick={handleUploadFeatureImage} className="mt-5 w-full">
         Upload

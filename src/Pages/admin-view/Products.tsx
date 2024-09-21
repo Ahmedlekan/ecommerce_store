@@ -6,8 +6,6 @@ import { useAppContext } from "../../contexts/AppContext";
 import { useMutation } from "@tanstack/react-query";
 import * as adminApiClient from "../../apiClient/admin"
 import { Fragment, useState } from "react";
-import { addProductFormElements } from "../../constant";
-import { initialFormDataProps } from "../../component/common/form";
 
 function AdminProducts() {
   const {showToast} = useAppContext()
@@ -75,11 +73,11 @@ function AdminProducts() {
           </SheetHeader>
 
           <div className="py-6">
+            
             <CommonForm
               onSave={handleSave}
               isLoading={isPending}
               // buttonText={currentEditedId !== null ? "Edit" : "Add"}
-              formControls={addProductFormElements}
             />
           </div>
         </SheetContent>
