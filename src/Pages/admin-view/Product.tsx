@@ -1,25 +1,23 @@
-// import AdminProductTile from "../../component/admin-view/ProductTile";
 import CommonForm from "../../component/common/form";
-import Button from "../../component/ui/Button";
-import {Sheet,SheetContent,SheetHeader,SheetTitle} from "../../component/ui/Sheet"
 import { useAppContext } from "../../contexts/AppContext";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation} from "@tanstack/react-query";
 import * as adminApiClient from "../../apiClient/admin"
-import { Fragment, useState } from "react";
+import {useState } from "react";
+import AllProducts from "../../component/admin-view/AllProducts";
 
-function AdminProducts() {
+
+function Products() {
   const {showToast} = useAppContext()
 
-  const [openCreateProductsDialog, setOpenCreateProductsDialog] = useState(false);
+  const [openCreateProductsDialog, setOpenCreateProductsDialog] = useState<boolean>(false);
  
   // const [currentEditedId, setCurrentEditedId] = useState(null);
   // const [productList, setProductList] = useState([]);
 
   // const { productList } = useSelector((state) => state.adminProducts);
   // const dispatch = useDispatch();
-
   
-  const {mutate, isPending} = useMutation( {
+  const {mutate, isPending} = useMutation({
     mutationFn: adminApiClient.addProduct,
     onSuccess: async (responseData) => {
       console.log("Mutation Result:", responseData); 
@@ -36,12 +34,31 @@ function AdminProducts() {
   }
 
   return (
-    <Fragment>
-      <div className="mb-5 w-full flex justify-end">
+    <div>
+        <AllProducts
+          setOpenCreateProductsDialog={setOpenCreateProductsDialog}
+        
+        />
+        {/**upload product component */}
+
+        {
+          openCreateProductsDialog && (
+            <CommonForm 
+              isLoading={isPending} 
+              onSave={handleSave} 
+              onClose={()=>setOpenCreateProductsDialog(false)}/>
+          )
+        }
+
+
+
+      {/* <div className="mb-5 w-full flex justify-end">
         <Button onClick={() => setOpenCreateProductsDialog(true)}>
           Add New Product
         </Button>
-      </div>
+      </div> */}
+
+      {/* <CommonForm /> */}
       
       {/* <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
         {productList && productList.length > 0
@@ -57,33 +74,9 @@ function AdminProducts() {
           : null}
       </div> */}
 
-      <Sheet
-        open={openCreateProductsDialog}
-        onOpenChange={() => {
-          setOpenCreateProductsDialog(false);
-          // setCurrentEditedId(null);
-          // setFormData(initialFormData);
-        }}
-      >
-        <SheetContent side="right" className="overflow-auto bg-gray-100">
-          <SheetHeader>
-            <SheetTitle>
-              {/* {currentEditedId !== null ? "Edit Product" : "Add New Product"} */}
-            </SheetTitle>
-          </SheetHeader>
-
-          <div className="py-6">
-            
-            <CommonForm
-              onSave={handleSave}
-              isLoading={isPending}
-              // buttonText={currentEditedId !== null ? "Edit" : "Add"}
-            />
-          </div>
-        </SheetContent>
-      </Sheet>
-    </Fragment>
+   
+    </div>
   );
 }
 
-export default AdminProducts;
+export default Products;

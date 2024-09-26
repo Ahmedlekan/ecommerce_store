@@ -2,6 +2,7 @@ import RenderInputComponents from "../ui/RenderInputComponents";
 import Button from "../ui/Button";
 import { useForm, FormProvider } from 'react-hook-form';
 import ProductImageUpload from "../../component/admin-view/ProductImageUpload";
+import { CgClose } from "react-icons/cg";
 
 export type initialFormDataProps = {
   imageUrls: string[];
@@ -19,9 +20,10 @@ export type initialFormDataProps = {
 type CommonFormProps = {
     onSave: (productFormData: FormData) => void;
     isLoading: boolean;
+    onClose: ()=> void
 }
 
-function CommonForm({onSave, isLoading}: CommonFormProps) {
+function CommonForm({onSave, isLoading, onClose}: CommonFormProps) {
 
     const formMethods = useForm<initialFormDataProps>()
     
@@ -57,20 +59,34 @@ function CommonForm({onSave, isLoading}: CommonFormProps) {
 
   return (
     <FormProvider {...formMethods}>
-       
-       <form onSubmit={onSubmit}>
-        <ProductImageUpload
-          isLoading={isLoading}
-          // isEditMode={currentEditedId !== null}
-        />
-        <div className="flex flex-col gap-3 mt-10">
-          <RenderInputComponents />
-        </div>
 
-        <Button disabled={isLoading} type="submit" className="mt-2 w-full">
-          {isLoading ? "Submitting..." : "Submit"}
-        </Button>
-      </form>
+      <div className="fixed w-full h-full bg-slate-200 bg-opacity-35 top-0 left-0 right-0 bottom-0 flex justify-center items-center z-50"
+      >
+        <div className="bg-white p-4 rounded w-full max-w-2xl max-h-[80%] overflow-y-auto"
+        >
+
+          <div className='flex justify-between items-center pb-3'>
+            <h2 className='font-bold text-lg'>Upload Product</h2>
+            <div className='w-fit ml-auto text-2xl hover:text-red-600 cursor-pointer' onClick={onClose}>
+                <CgClose/>
+            </div>
+          </div>
+
+
+
+          <form onSubmit={onSubmit}>
+            <div className="flex flex-col gap-3 mt-10">
+              <RenderInputComponents />
+              <ProductImageUpload />
+            </div>
+
+            <Button disabled={isLoading} type="submit" className="mt-2 w-full">
+              {isLoading ? "Submitting..." : "Submit"}
+            </Button>
+          </form>
+
+        </div>
+      </div>
     
     </FormProvider>
   );

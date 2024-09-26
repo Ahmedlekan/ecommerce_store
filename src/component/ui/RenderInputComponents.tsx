@@ -18,6 +18,7 @@ const RenderInputComponents = () => {
 
   const {register, formState:{errors}} = useFormContext<initialFormDataProps>()
 
+
   return (
     <div className="flex flex-col gap-4">
       

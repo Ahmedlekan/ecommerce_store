@@ -1,7 +1,11 @@
 import {BadgeCheck,ChartNoAxesCombined,LayoutDashboard,ShoppingBasket,} from "lucide-react";
 import { Fragment } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../ui/Sheet";
+import ROLE from "../../constant/role";
+import { useAppContext } from "../../contexts/AppContext";
+import { FaRegCircleUser } from "react-icons/fa6";
 
 const adminSidebarMenuItems = [
   {
@@ -55,6 +59,15 @@ function MenuItems({ setOpen }: SidebarProps) {
 function AdminSideBar({ open, setOpen }: SidebarProps) {
   const navigate = useNavigate();
 
+  const {user} = useAppContext()
+
+
+  useEffect(()=>{
+      if(user?.role === ROLE.ADMIN){
+          navigate("/")
+      }
+  },[user, navigate])
+
   return (
     <Fragment>
       <Sheet open={open} onOpenChange={setOpen}>
@@ -79,6 +92,21 @@ function AdminSideBar({ open, setOpen }: SidebarProps) {
           <ChartNoAxesCombined size={30} />
           <h1 className="text-2xl font-extrabold">Admin Panel</h1>
         </div>
+
+        <div className='h-32 flex justify-center items-center gap-2 flex-col mt-2'>
+          <div className='text-5xl cursor-pointer relative flex justify-center'>
+              {
+              user?.profilePic ? (
+                  <img src={user?.profilePic} className='w-50 h-50 rounded-full' alt={user?.name} />
+              ) : (
+                  <FaRegCircleUser size={50}/>
+              )
+              }
+          </div>
+          <p className='capitalize text-black text-lg font-semibold'>{user?.name}</p>
+          <p className='text-sm'>{user?.role}</p>
+        </div>
+
         <MenuItems />
       </aside>
     </Fragment>
