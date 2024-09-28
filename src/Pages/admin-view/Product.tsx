@@ -11,12 +11,6 @@ function Products() {
 
   const [openCreateProductsDialog, setOpenCreateProductsDialog] = useState<boolean>(false);
  
-  // const [currentEditedId, setCurrentEditedId] = useState(null);
-  // const [productList, setProductList] = useState([]);
-
-  // const { productList } = useSelector((state) => state.adminProducts);
-  // const dispatch = useDispatch();
-  
   const {mutate, isPending} = useMutation({
     mutationFn: adminApiClient.addProduct,
     onSuccess: async (responseData) => {
@@ -37,10 +31,9 @@ function Products() {
     <div>
         <AllProducts
           setOpenCreateProductsDialog={setOpenCreateProductsDialog}
-        
         />
-        {/**upload product component */}
 
+        {/**upload product component */}
         {
           openCreateProductsDialog && (
             <CommonForm 
@@ -49,32 +42,6 @@ function Products() {
               onClose={()=>setOpenCreateProductsDialog(false)}/>
           )
         }
-
-
-
-      {/* <div className="mb-5 w-full flex justify-end">
-        <Button onClick={() => setOpenCreateProductsDialog(true)}>
-          Add New Product
-        </Button>
-      </div> */}
-
-      {/* <CommonForm /> */}
-      
-      {/* <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
-        {productList && productList.length > 0
-          ? productList.map((productItem) => (
-              <AdminProductTile
-                setFormData={setFormData}
-                setOpenCreateProductsDialog={setOpenCreateProductsDialog}
-                setCurrentEditedId={setCurrentEditedId}
-                product={productItem}
-                handleDelete={handleDelete}
-              />
-            ))
-          : null}
-      </div> */}
-
-   
     </div>
   );
 }

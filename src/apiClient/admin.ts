@@ -31,9 +31,28 @@ export const fetchAllProduct = async (): Promise<ProductsType[]>=>{
     return response.json()
 }
 
+export const fetchProductById = async (productId: string): Promise<ProductsType> =>{
+    const response = await fetch(`${API_BASE_URL}/api/admin/${productId}`, {
+        credentials: "include",
+    })
+
+    if(!response.ok){
+        throw new Error("Error fetching hotels")
+    }
+    return response.json()
+}
+
 // for editing a product
-export const updateMyHotelById = async (productFormData: FormData) =>{
-    const response =  await fetch(`${API_BASE_URL}/api/admin/${productFormData.get("hotelId")}`, {
+export const updateProductById = async (productFormData: FormData) =>{
+    
+    const productId = productFormData.get("productId");
+
+    // Ensure the product ID exists
+    if (!productId) {
+        throw new Error("Product ID is required");
+    }
+
+    const response =  await fetch(`${API_BASE_URL}/api/admin/${productId}`, {
         method: "PUT",
         body: productFormData,
         credentials:"include"
