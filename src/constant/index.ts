@@ -1,7 +1,6 @@
 import { facebook, instagram, shieldTick, support, truckFast, twitter } from "../assets/icons";
 import { bigShoe1, bigShoe2, bigShoe3, customer1, customer2, shoe4, shoe5, shoe6, shoe7, 
     thumbnailShoe1, thumbnailShoe2, thumbnailShoe3, blog1, acc} from "../assets/images";
-import { FormControl } from "../component/ui/RenderInputComponents";
 
 export const shoes = [
     {
@@ -214,11 +213,14 @@ export const blogs = [
     name: "category",
     componentType: "select",
     options: [
-      { id: "men", label: "Men" },
-      { id: "women", label: "Women" },
-      { id: "kids", label: "Kids" },
-      { id: "accessories", label: "Accessories" },
-      { id: "footwear", label: "Footwear" },
+      { id : 1, label : "Airpodes"},
+      { id : 2, label : "Camera"},
+      { id : 3, label : "Earphones"},
+      { id : 4, label : "Mouse"},
+      { id : 5, label : "Processor"},
+      { id : 6, label : "Speakers"},
+      { id : 7, label : "Trimmers"},
+      { id : 8, label : "Watches"},
     ],
   }
 
@@ -227,12 +229,12 @@ export const blogs = [
     name: "brand",
     componentType: "select",
     options: [
-      { id: "nike", label: "Nike" },
-      { id: "adidas", label: "Adidas" },
-      { id: "puma", label: "Puma" },
-      { id: "levi", label: "Levi's" },
-      { id: "zara", label: "Zara" },
-      { id: "h&m", label: "H&M" },
+      { id: "apple", label: "Apple" },
+      { id: "samsung", label: "Samsung" },
+      { id: "sansisk", label: "Sansisk" },
+      { id: "dell", label: "Dell" },
+      { id: "canon", label: "Canon" },
+      { id: "intel", label: "Intel" },
     ],
   }
 

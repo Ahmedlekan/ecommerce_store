@@ -7,11 +7,13 @@ import Collection from "../../component/general-view/Collection"
 import Blog from "../../component/general-view/Blog"
 import CustomerReviews from "../../component/general-view/CustomerReviews"
 import SuperQuality from "../../component/general-view/SuperQuality"
+import CategoryList from "../../component/general-view/CategoryList"
 
 const HomePage = () => {
   return (
     <>
       <Hero />
+      <CategoryList />
       <Services />
       <PopularProducts />
       <SliderSection />

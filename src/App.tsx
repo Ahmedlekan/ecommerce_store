@@ -1,18 +1,19 @@
-import HomePage from "./pages/General-view/HomePage"
+import HomePage from "./pages/general-view/HomePage"
 import SignUp from  "./pages/authentication/SignUp"
 import SignIn from "./pages/authentication/SignIn"
 import Layout from "./component/general-view/Layout"
 import AdminLayout from "./component/admin-view/AdminLayout"
 import AdminDashboard from "./pages/admin-view/Dashboard"
+// import ProtectedRoute from "./component/ProtectedRoute"
 import AdminFeatures from "./pages/admin-view/Features"
 import AdminOrders from "./pages/admin-view/Orders"
 import AdminProducts from "./pages/admin-view/Product"
 import { BrowserRouter as Router, Routes, Route, Outlet } from "react-router-dom"
 import { Skeleton } from "./component/ui/Skeleton"
 import { useAppContext } from "./contexts/AppContext"
-import Account from "./pages/General-view/Account"
-import Checkout from "./pages/General-view/Checkout"
-import Listing from "./pages/General-view/Listing"
+import Account from "./pages/general-view/Account"
+import Checkout from "./pages/general-view/Checkout"
+import Listing from "./pages/general-view/Listing"
 
 
 const AuthenticatedLayout = () => (
@@ -47,7 +48,13 @@ function App() {
           </Route>
 
           {isLoggedIn && (
-            <Route path="admin" element={<AdminLayout />}>
+            <Route path="admin" 
+              element={
+                
+                  <AdminLayout />
+                }
+              >
+
               <Route path="dashboard" element={<AdminDashboard />} />
               <Route path="products" element={<AdminProducts />} />
               <Route path="orders" element={<AdminOrders />} />

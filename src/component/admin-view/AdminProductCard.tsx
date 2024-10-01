@@ -1,9 +1,9 @@
 // import { useState } from 'react'
-import { MdModeEditOutline } from "react-icons/md";
 import AdminEditProduct from "./AdminEditProduct";
-import displayINRCurrency from '../../lib/displayCurrency';
 import { ProductsType } from '../../../../backend/src/shared/types';
 import { useState } from "react";
+import { CardContent, Card, CardFooter } from "../ui/Card";
+import Button from "../ui/Button";
 
 type AdminProductProps = {
     data: ProductsType 
@@ -13,26 +13,46 @@ const AdminProductCard = ({data}: AdminProductProps) => {
     const [editProduct,setEditProduct] = useState<boolean>(false)
 
   return (
-    <div className='bg-white p-4 rounded '>
-       <div className='w-40'>
-            <div className='w-32 h-32 flex justify-center items-center'>
+    <Card className='w-full max-w-sm mx-auto'>
+       
+       <div>
+            {/* <div className='w-32 h-32 flex justify-center items-center'>
               <img src={data?.imageUrls[0] }  className='mx-auto object-fill h-full'/>   
-            </div> 
-            <h1 className='text-ellipsis line-clamp-2'>{data.title}</h1>
+            </div> */}
+          <div className="relative">
+            <img
+              src={data?.imageUrls[0]}
+              alt={data.title}
+              className="w-full h-[200px] object-fill rounded-t-lg mx-auto"
+            />
+          </div>
 
-            <div>
-
-                <p className='font-semibold'>
-                    {displayINRCurrency({ num: data.salePrice })}
-                </p>
-
-                <div className='w-fit ml-auto p-2 bg-green-100 hover:bg-green-600 
-                    rounded-full hover:text-white cursor-pointer' onClick={()=>setEditProduct(true)}>
-                    <MdModeEditOutline/>
-                </div>
-
+          <CardContent>
+            <h2 className="text-xl font-bold mb-2 mt-2">{data.title}</h2>
+            <div className="flex justify-between items-center mb-2">
+              <span
+                className={`${
+                  data.salePrice > 0 ? "line-through" : ""
+                } text-lg font-semibold text-primary`}
+              >
+                ${data.price}
+              </span>
+              {data.salePrice > 0 ? (
+                <span className="text-lg font-bold">${data.salePrice}</span>
+              ) : null}
             </div>
+          </CardContent>
 
+          <CardFooter className="flex justify-between items-center">
+
+            <Button onClick={()=>setEditProduct(true)}>
+              Edit
+            </Button>
+            
+            <Button onClick={()=>setEditProduct(true)}>
+              Edit
+            </Button>
+          </CardFooter>
           
        </div>
         
@@ -42,7 +62,7 @@ const AdminProductCard = ({data}: AdminProductProps) => {
           )
         }
     
-    </div>
+    </Card>
   )
 }
 

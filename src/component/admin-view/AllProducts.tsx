@@ -8,23 +8,25 @@ type AllProductsProps = {
 
 const AllProducts = ({setOpenCreateProductsDialog}: AllProductsProps) => {
 
-    const {data: allProduct} = useQuery({
+    const {data: allProduct, isLoading, isError} = useQuery({
         queryKey: ["fetchAllProducts"],
         queryFn: adminApiClient.fetchAllProduct
     })
 
-    console.log(allProduct)
-
-    if(!allProduct){
+    if(isLoading){
         return (
-            <div>No Products Dound</div>
+            <div>Loading...</div>
         )
+    }
+
+    if(isError){
+      return <div> No Products Found</div>
     }
 
   return (
     <div>
         
-        <div className='bg-white py-2 px-4 flex justify-between items-center'>
+        <div className='bg-gray-100 py-4 px-4 flex justify-between items-center'>
             <h2 className='font-bold text-lg'>All Product</h2>
             <button  className='border-2 border-red-600 text-red-600 hover:bg-red-600 
                 hover:text-white transition-all py-1 px-3 rounded-full ' 
@@ -32,7 +34,7 @@ const AllProducts = ({setOpenCreateProductsDialog}: AllProductsProps) => {
         </div>
 
         {/**all product */}
-        <div className='flex items-center flex-wrap gap-5 py-4 h-[calc(100vh-190px)] overflow-y-scroll'>
+        <div className='grid gap-4 md:grid-cols-3 lg:grid-cols-4 overflow-y-scroll h-[calc(100vh-190px)]'>
           {
             allProduct.map((product, index)=>{
               return(
