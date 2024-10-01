@@ -16,3 +16,15 @@ export const CategoryList = async (): Promise<ProductsType[]>=>{
 
     return result.data
 }
+
+export const fetchRandomProduct = async (): Promise<ProductsType[]>=>{
+    const response = await fetch(`${API_BASE_URL}/api/general`, {
+        credentials: "include",
+    })
+
+    if(!response.ok){
+        console.log("Error fetchinh Products")
+    }
+
+    return response.json()
+}

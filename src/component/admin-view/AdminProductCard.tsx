@@ -23,7 +23,7 @@ const AdminProductCard = ({data}: AdminProductProps) => {
             <img
               src={data?.imageUrls[0]}
               alt={data.title}
-              className="w-full h-[200px] object-fill rounded-t-lg mx-auto"
+              className="w-full h-[250px] object-fill rounded-t-lg mx-auto p-2"
             />
           </div>
 
@@ -33,7 +33,7 @@ const AdminProductCard = ({data}: AdminProductProps) => {
               <span
                 className={`${
                   data.salePrice > 0 ? "line-through" : ""
-                } text-lg font-semibold text-primary`}
+                } text-lg font-semibold text-coral-red`}
               >
                 ${data.price}
               </span>

@@ -10,8 +10,6 @@ const CategoryList = () => {
         queryFn: generalApiClient.CategoryList
     })
 
-    console.log(categoryProduct)
-
     const categoryLoading = new Array(8).fill(null)
 
     if(isLoading){
@@ -26,7 +24,7 @@ const CategoryList = () => {
 
 
   return (
-    <div className='container mx-auto pt-16 p-4 bg-gray-100'>
+    <div className='container mx-auto pt-16 p-4 bg-gray-100 overflow-scroll scrollbar-none'>
 
         <div className='flex items-center gap-4 justify-between'>
 
