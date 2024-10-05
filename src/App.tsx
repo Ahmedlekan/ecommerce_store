@@ -14,6 +14,8 @@ import { useAppContext } from "./contexts/AppContext"
 import Account from "./pages/general-view/Account"
 import Checkout from "./pages/general-view/Checkout"
 import Listing from "./pages/general-view/Listing"
+import ProductDetails from "./pages/general-view/ProductDetails"
+import ProductCategory from "./pages/general-view/ProductCategory"
 
 
 const AuthenticatedLayout = () => (
@@ -37,12 +39,14 @@ function App() {
             <Route index element={<HomePage />} />
             <Route path="sign-up" element={<SignUp />} />
             <Route path="login" element={<SignIn />} />
+            <Route path="product/:productId" element={<ProductDetails />} />
+            <Route path="product-category/:categoryName" element={<ProductCategory />} />
+            <Route path="listing" element={<Listing/>} />
 
             {isLoggedIn && (
               <Route element={<AuthenticatedLayout />}>
                 <Route path="account" element={<Account/>} />
                 <Route path="checkout" element={<Checkout/>} />
-                <Route path="listing" element={<Listing/>} />
               </Route>
             )}
           </Route>

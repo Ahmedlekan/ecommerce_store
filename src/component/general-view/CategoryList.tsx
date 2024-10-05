@@ -12,12 +12,6 @@ const CategoryList = () => {
 
     const categoryLoading = new Array(8).fill(null)
 
-    if(isLoading){
-        return (
-            <div>Loading...</div>
-        )
-    }
-
     if(isError){
       return <div> No Products Found</div>
     }
