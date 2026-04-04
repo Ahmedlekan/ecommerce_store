@@ -1,0 +1,269 @@
+name: ecommerce_store
+
+services:
+  cart:
+    build:
+      context: ./cart  # Adjust path to your local repo
+      dockerfile: Dockerfile
+    cap_add:
+      - NET_BIND_SERVICE
+    cap_drop:
+      - all
+    depends_on:
+      carts-db:
+        condition: service_healthy
+        required: true
+    environment:
+      - SERVER_TOMCAT_ACCESSLOG_ENABLED=true
+      - RETAIL_CART_PERSISTENCE_PROVIDER=dynamodb
+      - RETAIL_CART_PERSISTENCE_DYNAMODB_ENDPOINT=http://carts-db:8000
+      - RETAIL_CART_PERSISTENCE_DYNAMODB_CREATE_TABLE=true
+      - AWS_ACCESS_KEY_ID=key
+      - AWS_SECRET_ACCESS_KEY=dummy
+    healthcheck:
+      interval: 10s
+      retries: 3
+      start_period: 15s
+      test:
+        - CMD-SHELL
+        - curl -f http://localhost:8080/actuator/health || exit 1
+      timeout: 10s
+    hostname: carts
+    read_only: true
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid
+  carts-db:
+    image: amazon/dynamodb-local:1.20.0
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    cap_drop:
+      - all
+    healthcheck:
+      interval: 5s
+      retries: 3
+      test:
+        - CMD-SHELL
+        - exit 0
+      timeout: 15s
+    hostname: carts-db
+    read_only: true
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid
+
+  catalog:
+    build:
+      context: ./catalog  # Adjust path
+      dockerfile: Dockerfile
+    cap_drop:
+      - all
+    depends_on:
+      catalog-db:
+        condition: service_healthy
+        required: true
+        restart: true
+    environment:
+      - GIN_MODE=release
+      - reschedule=on-node-failure
+      - RETAIL_CATALOG_PERSISTENCE_PROVIDER=mysql
+      - RETAIL_CATALOG_PERSISTENCE_PASSWORD=${DB_PASSWORD}
+      - RETAIL_CATALOG_PERSISTENCE_ENDPOINT=catalog-db:3306
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test:
+        - CMD-SHELL
+        - curl -f http://localhost:8080/health || exit 1
+      timeout: 10s
+    hostname: catalog
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+  catalog-db:
+    image: mariadb:10.9
+    environment:
+      - reschedule=on-node-failure
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      # - MYSQL_ALLOW_EMPTY_PASSWORD=true
+      - MYSQL_DATABASE=catalogdb
+      - MYSQL_USER=catalog_user
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+    healthcheck:
+      interval: 10s
+      retries: 3
+      start_period: 30s
+      test:
+        - CMD
+        - mysqladmin
+        - ping
+        - -h
+        - localhost
+        - -u
+        - catalog_user
+        - -p${DB_PASSWORD}
+      timeout: 5s
+    hostname: catalog-db
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+  checkout:
+    build:
+      context: ./checkout  # Adjust path
+      dockerfile: Dockerfile
+    cap_add:
+      - NET_BIND_SERVICE
+    cap_drop:
+      - all
+    depends_on:
+      checkout-redis:
+        condition: service_healthy
+        required: true
+    environment:
+      - RETAIL_CHECKOUT_PERSISTENCE_PROVIDER=redis
+      - RETAIL_CHECKOUT_PERSISTENCE_REDIS_URL=redis://checkout-redis:6379
+      - RETAIL_CHECKOUT_ENDPOINTS_ORDERS=http://orders:8080
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test:
+        - CMD-SHELL
+        - curl -f http://localhost:8080/health || exit 1
+      timeout: 10s
+    hostname: checkout
+    read_only: true
+    restart: always
+    tmpfs:
+      - /tmp:rw,noexec,nosuid
+  checkout-redis:
+    image: redis:6.0-alpine
+    healthcheck:
+      interval: 1s
+      retries: 30
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      timeout: 3s
+    hostname: checkout-redis
+    restart: always
+  orders:
+    build:
+      context: ./orders  # Adjust path
+      dockerfile: Dockerfile
+    cap_add:
+      - NET_BIND_SERVICE
+    cap_drop:
+      - all
+    depends_on:
+      orders-db:
+        condition: service_healthy
+        required: true
+        restart: true
+    environment:
+      - reschedule=on-node-failure
+      - SERVER_TOMCAT_ACCESSLOG_ENABLED=true
+      - RETAIL_ORDERS_PERSISTENCE_PROVIDER=postgres
+      - RETAIL_ORDERS_PERSISTENCE_ENDPOINT=orders-db:5432
+      - RETAIL_ORDERS_PERSISTENCE_NAME=orders
+      - RETAIL_ORDERS_PERSISTENCE_USERNAME=orders_user
+      - RETAIL_ORDERS_PERSISTENCE_PASSWORD=${DB_PASSWORD}
+      - RETAIL_ORDERS_MESSAGING_PROVIDER=rabbitmq
+      - RETAIL_ORDERS_MESSAGING_RABBITMQ_ADDRESSES=rabbitmq:5672
+      - RETAIL_ORDERS_MESSAGING_RABBITMQ_USERNAME=rabbitmq
+      - RETAIL_ORDERS_MESSAGING_RABBITMQ_PASSWORD=${DB_PASSWORD}
+    healthcheck:
+      interval: 10s
+      retries: 3
+      start_period: 15s
+      test:
+        - CMD-SHELL
+        - curl -f http://localhost:8080/actuator/health || exit 1
+      timeout: 10s
+    hostname: orders
+    read_only: true
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid
+  orders-db:
+    image: postgres:16.1
+    environment:
+      - reschedule=on-node-failure
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=orders
+      - POSTGRES_USER=orders_user
+    healthcheck:
+      interval: 10s
+      retries: 30
+      test:
+        - CMD-SHELL
+        - pg_isready -d orders -U orders_user
+      timeout: 5s
+    hostname: orders-db
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=rabbitmq
+      - RABBITMQ_DEFAULT_PASS=${DB_PASSWORD}
+    hostname: rabbitmq
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+
+  ui:
+    build:
+      context: ./ui  # Adjust path
+      dockerfile: Dockerfile
+    cap_drop:
+      - ALL
+    depends_on:
+      cart:
+        condition: service_healthy
+        required: true
+        restart: true
+      catalog:
+        condition: service_healthy
+        required: true
+        restart: true
+      checkout:
+        condition: service_healthy
+        required: true
+        restart: true
+      orders:
+        condition: service_healthy
+        required: true
+        restart: true
+    environment:
+      - JAVA_OPTS=-XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/urandom
+      - SERVER_TOMCAT_ACCESSLOG_ENABLED=true
+      - RETAIL_UI_ENDPOINTS_CATALOG=http://catalog:8080
+      - RETAIL_UI_ENDPOINTS_CARTS=http://carts:8080
+      - RETAIL_UI_ENDPOINTS_ORDERS=http://orders:8080
+      - RETAIL_UI_ENDPOINTS_CHECKOUT=http://checkout:8080
+    healthcheck:
+      interval: 10s
+      retries: 3
+      start_period: 15s
+      test:
+        - CMD-SHELL
+        - curl -s -f http://localhost:8080/actuator/health || exit 1
+      timeout: 10s
+    hostname: ui
+    mem_limit: 512m
+    ports:
+      - mode: ingress
+        protocol: tcp
+        published: "8888"
+        target: 8080
+    restart: always
