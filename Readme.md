@@ -1,0 +1,1 @@
+# 🚀 Advanced End-to-End DevSecOps Project: Micro-service Application on AWS with Docker, Kubernetes [EKS, HPA, KARPENTER], Terraform, Helm, ArgoCD, Github Action, GitOps, SonarQube, Prometheus, Grafana, OpenTelemetry, Cloudwatch, X-Ray #
