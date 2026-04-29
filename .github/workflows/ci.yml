@@ -1,0 +1,253 @@
+# This workflow is the application's Continuous Integration gate.
+# It proves the code can build, pass tests, and pass lint checks before merge.
+name: CI
+
+# Run CI for pull requests so GitHub can block bad changes before merge.
+# Also run on pushes to main so the main branch is always verified.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+# CI only needs read access to the repository contents.
+# AWS/ECR/deployment permissions should be added later in separate CD workflows.
+permissions:
+  contents: read
+
+jobs:
+  catalog:
+    # Catalog is the Go microservice.
+    name: catalog - build and test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        # The Nx workspace lives inside the "Application Code" directory.
+        working-directory: "Application Code"
+
+    steps:
+      # Download the repository code into the GitHub Actions runner.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install the Go version used by the catalog service.
+      # The current catalog go.mod includes toolchain go1.24.5.
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.5"
+          cache-dependency-path: "Application Code/src/catalog/go.sum"
+
+      # Install Node because Nx is the command runner for this repository.
+      - name: Set up Node.js for Nx
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: "Application Code/package-lock.json"
+
+      # Install the root workspace dependencies, including Nx.
+      - name: Install workspace dependencies
+        run: npm ci
+
+      # Compile the catalog Go application through its Nx target.
+      - name: Build catalog
+        run: npx nx build catalog
+
+      # Run the catalog test target.
+      - name: Test catalog
+        run: npx nx test catalog
+
+  cart:
+    # Cart is a Java/Maven microservice.
+    name: cart - build, test, and lint
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: "Application Code"
+
+    steps:
+      # Download the repository code into the GitHub Actions runner.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install Java 21 because the cart pom.xml declares java.version 21.
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      # Install Node because Nx is the command runner for this repository.
+      - name: Set up Node.js for Nx
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: "Application Code/package-lock.json"
+
+      # Install the root workspace dependencies, including Nx.
+      - name: Install workspace dependencies
+        run: npm ci
+
+      # Ensure the Maven wrapper can execute on the Linux runner.
+      - name: Make cart Maven wrapper executable
+        run: chmod +x src/cart/mvnw
+
+      # Package the cart service without running tests.
+      - name: Build cart
+        run: npx nx build cart
+
+      # Run the cart unit tests.
+      - name: Test cart
+        run: npx nx test cart
+
+      # Run checkstyle for the cart service.
+      - name: Lint cart
+        run: npx nx lint cart
+
+  checkout:
+    # Checkout is a Node.js/NestJS microservice.
+    name: checkout - build, test, and lint
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        # Checkout has its own package.json and yarn.lock.
+        working-directory: "Application Code/src/checkout"
+
+    steps:
+      # Download the repository code into the GitHub Actions runner.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install Node for the checkout service.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: yarn
+          cache-dependency-path: "Application Code/src/checkout/yarn.lock"
+
+      # Enable Corepack so the runner can use Yarn consistently.
+      - name: Enable Corepack
+        run: corepack enable
+
+      # Install checkout dependencies exactly from yarn.lock.
+      - name: Install checkout dependencies
+        run: yarn install --frozen-lockfile
+
+      # Compile the NestJS checkout application.
+      - name: Build checkout
+        run: yarn build
+
+      # Run the checkout test script.
+      - name: Test checkout
+        run: yarn test
+
+      # Run ESLint for the checkout service.
+      - name: Lint checkout
+        run: yarn lint
+
+  orders:
+    # Orders is a Java/Maven microservice.
+    name: orders - build, test, and lint
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: "Application Code"
+
+    steps:
+      # Download the repository code into the GitHub Actions runner.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install Java 21 because the orders pom.xml declares java.version 21.
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      # Install Node because Nx is the command runner for this repository.
+      - name: Set up Node.js for Nx
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: "Application Code/package-lock.json"
+
+      # Install the root workspace dependencies, including Nx.
+      - name: Install workspace dependencies
+        run: npm ci
+
+      # Ensure the Maven wrapper can execute on the Linux runner.
+      - name: Make orders Maven wrapper executable
+        run: chmod +x src/orders/mvnw
+
+      # Package the orders service without running tests.
+      - name: Build orders
+        run: npx nx build orders
+
+      # Run the orders unit tests.
+      - name: Test orders
+        run: npx nx test orders
+
+      # Run checkstyle for the orders service.
+      - name: Lint orders
+        run: npx nx lint orders
+
+  ui:
+    # UI is a Java/Maven Spring Boot microservice.
+    name: ui - build, test, and lint
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: "Application Code"
+
+    steps:
+      # Download the repository code into the GitHub Actions runner.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install Java 21 because the ui pom.xml declares java.version 21.
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      # Install Node because Nx is the command runner for this repository.
+      - name: Set up Node.js for Nx
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: "Application Code/package-lock.json"
+
+      # Install the root workspace dependencies, including Nx.
+      - name: Install workspace dependencies
+        run: npm ci
+
+      # Ensure the Maven wrapper can execute on the Linux runner.
+      - name: Make ui Maven wrapper executable
+        run: chmod +x src/ui/mvnw
+
+      # Package the UI service without running tests.
+      - name: Build ui
+        run: npx nx build ui
+
+      # Run the UI unit tests.
+      - name: Test ui
+        run: npx nx test ui
+
+      # Run checkstyle for the UI service.
+      - name: Lint ui
+        run: npx nx lint ui
