@@ -1,0 +1,128 @@
+# This workflow is the application's image publishing pipeline.
+# It builds Docker images for each microservice and pushes them to AWS ECR.
+name: Build and Push Images to ECR
+
+# Run automatically after the CI workflow completes on the main branch.
+# This keeps image publishing separate from pull request validation.
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+
+  # Allow manual runs from the GitHub Actions tab for testing or controlled rebuilds.
+  workflow_dispatch:
+
+# Required for GitHub OIDC authentication with AWS.
+# contents: read lets the workflow checkout the repository.
+# id-token: write lets GitHub request a short-lived AWS token.
+permissions:
+  contents: read
+  id-token: write
+
+# Shared values used by every job in this workflow.
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+
+jobs:
+  build-and-push:
+    # Only publish images if CI succeeded, or if the workflow was started manually.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    # Each matrix entry builds and pushes one microservice image.
+    name: build and push ${{ matrix.service }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Do not cancel other service image builds if one service fails.
+      fail-fast: false
+      matrix:
+        include:
+          # Go catalog service.
+          - service: catalog
+            context: Application Code/src/catalog
+            dockerfile: Application Code/src/catalog/Dockerfile
+            repository: ecommerce-store/catalog
+
+          # Java cart service.
+          - service: cart
+            context: Application Code/src/cart
+            dockerfile: Application Code/src/cart/Dockerfile
+            repository: ecommerce-store/cart
+
+          # Node.js checkout service.
+          - service: checkout
+            context: Application Code/src/checkout
+            dockerfile: Application Code/src/checkout/Dockerfile
+            repository: ecommerce-store/checkout
+
+          # Java orders service.
+          - service: orders
+            context: Application Code/src/orders
+            dockerfile: Application Code/src/orders/Dockerfile
+            repository: ecommerce-store/orders
+
+          # Java UI service.
+          - service: ui
+            context: Application Code/src/ui
+            dockerfile: Application Code/src/ui/Dockerfile
+            repository: ecommerce-store/ui
+
+    steps:
+      # Download the repository code into the GitHub Actions runner.
+      # For automatic runs, checkout the exact commit that passed CI.
+      # For manual runs, checkout the commit selected when starting the workflow.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      # Assume the AWS IAM role using GitHub OIDC.
+      # This avoids storing long-lived AWS access keys in GitHub.
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Login Docker to Amazon ECR.
+      # The action returns the registry URI, for example:
+      # 314146307160.dkr.ecr.us-east-1.amazonaws.com
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Use the first 7 characters of the Git commit SHA as the image tag.
+      # This creates traceable image versions like catalog:a1b2c3d.
+      - name: Create image tag
+        id: image-tag
+        env:
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: echo "tag=${SOURCE_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      # Confirm the target ECR repository exists before spending time building.
+      # If this fails, create the missing ECR repository first.
+      - name: Verify ECR repository exists
+        run: aws ecr describe-repositories --repository-names "${{ matrix.repository }}"
+
+      # Build the Docker image from the service-specific Dockerfile and context.
+      - name: Build Docker image
+        env:
+          IMAGE_URI: ${{ steps.ecr-login.outputs.registry }}/${{ matrix.repository }}:${{ steps.image-tag.outputs.tag }}
+        run: docker build -f "${{ matrix.dockerfile }}" -t "$IMAGE_URI" "${{ matrix.context }}"
+
+      # Push the image to ECR using the immutable commit-SHA tag.
+      - name: Push Docker image to ECR
+        env:
+          IMAGE_URI: ${{ steps.ecr-login.outputs.registry }}/${{ matrix.repository }}:${{ steps.image-tag.outputs.tag }}
+        run: docker push "$IMAGE_URI"
+
+      # Print the pushed image URI so it is easy to copy into future deploy workflows.
+      - name: Show pushed image
+        env:
+          IMAGE_URI: ${{ steps.ecr-login.outputs.registry }}/${{ matrix.repository }}:${{ steps.image-tag.outputs.tag }}
+        run: echo "Pushed $IMAGE_URI"
