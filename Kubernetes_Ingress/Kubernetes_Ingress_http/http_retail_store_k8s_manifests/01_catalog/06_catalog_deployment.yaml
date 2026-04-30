@@ -42,8 +42,13 @@ spec:
           envFrom:
             - configMapRef:
                 name: catalog
-            - secretRef:
-                name: catalog-db
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              export RETAIL_CATALOG_PERSISTENCE_USER="$(cat /mnt/secrets-store/MYSQL_USER)";
+              export RETAIL_CATALOG_PERSISTENCE_PASSWORD="$(cat /mnt/secrets-store/MYSQL_PASSWORD)";
+              echo "Loaded catalog database credentials from AWS Secrets Manager. Starting catalog service.";
+              exec /app/main
           securityContext:
             capabilities:
               drop:
@@ -69,9 +74,18 @@ spec:
               cpu: 256m
               memory: 256Mi
           volumeMounts:
+            - name: aws-secrets
+              mountPath: /mnt/secrets-store
+              readOnly: true
             - mountPath: /tmp
               name: tmp-volume
       volumes:
+        - name: aws-secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: catalog-db-secrets
         - name: tmp-volume
           emptyDir:
             medium: Memory
