@@ -207,6 +207,564 @@ secrets-provider-aws-secrets-store-csi-driver-provider-aws 1/1     Running   2m
 eks-pod-identity-agent-xxxxx                               1/1     Running   1m
 ```
 
+# Step-04: Secrets Store CSI Driver, AWS Provider, and EKS Pod Identity
+
+This step explains how Kubernetes workloads running on EKS can read secrets from AWS Secrets Manager without storing long-lived AWS credentials inside pods.
+
+The goal is to use this flow:
+
+```bash
+Kubernetes Pod
+  -> Kubernetes ServiceAccount
+  -> EKS Pod Identity Association
+  -> IAM Role
+  -> IAM Policy
+  -> AWS Secrets Manager Secret
+```
+
+## Why This Is Needed
+
+Installing the Secrets Store CSI Driver and the AWS Secrets Provider only installs the Kubernetes components that know how to mount external secrets into pods.
+
+Those add-ons do **not** automatically give application pods permission to read AWS Secrets Manager secrets.
+
+For a pod to read a secret, it still needs AWS IAM permissions. In this project, those permissions are granted through **EKS Pod Identity**.
+
+## Secrets Store CSI Driver
+
+The Secrets Store CSI Driver is a Kubernetes CSI driver that allows pods to mount secrets from external secret stores as files inside the pod.
+
+In simple terms:
+
+```bash
+Secrets Store CSI Driver = Kubernetes component that mounts external secrets into pods
+```
+
+It does not own the secret and it does not decide which AWS secret a pod can read. It only provides the Kubernetes mounting mechanism.
+
+Terraform file:
+
+```bash
+Terraform/dev/EKS/EKS_terraform-manifests/c16-01-secretstorecsi-helm-install.tf
+```
+
+This file installs the driver using Helm:
+
+```hcl
+resource "helm_release" "secrets_store_csi_driver" {
+  name       = "csi-secrets-store"
+  repository = "https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts"
+  chart      = "secrets-store-csi-driver"
+  namespace  = "kube-system"
+}
+```
+
+Important setting:
+
+```hcl
+set = [
+  {
+    name  = "syncSecret.enabled"
+    value = "true"
+  },
+]
+```
+
+This allows mounted external secrets to also be synced into native Kubernetes `Secret` objects when a `SecretProviderClass` is configured to do so.
+
+## AWS Secrets and Configuration Provider
+
+The AWS Secrets and Configuration Provider is also called **ASCP**.
+
+ASCP is the AWS-specific provider that allows the Secrets Store CSI Driver to read from:
+
+- AWS Secrets Manager
+- AWS Systems Manager Parameter Store
+
+In simple terms:
+
+```bash
+AWS Secrets Provider = AWS plugin that knows how to retrieve AWS secrets
+```
+
+Terraform file:
+
+```bash
+Terraform/dev/EKS/EKS_terraform-manifests/c16-02-secretstorecsi-ascp-helm-install.tf
+```
+
+This file installs the AWS provider using Helm:
+
+```hcl
+resource "helm_release" "aws_secrets_provider" {
+  name       = "secrets-provider-aws"
+  repository = "https://aws.github.io/secrets-store-csi-driver-provider-aws"
+  chart      = "secrets-store-csi-driver-provider-aws"
+  namespace  = "kube-system"
+}
+```
+
+Important setting:
+
+```hcl
+set = [
+  {
+    name  = "secrets-store-csi-driver.install"
+    value = "false"
+  }
+]
+```
+
+This prevents the AWS provider chart from installing another copy of the CSI driver, because the CSI driver is already installed separately.
+
+## EKS Pod Identity
+
+EKS Pod Identity allows a Kubernetes service account to assume an AWS IAM role.
+
+This avoids putting AWS access keys inside Kubernetes secrets, pods, or application code.
+
+The trust policy used by Pod Identity is defined here:
+
+```bash
+Terraform/dev/EKS/EKS_terraform-manifests/c13-podidentity-assumerole.tf
+```
+
+The trusted AWS service is:
+
+```hcl
+principals {
+  type        = "Service"
+  identifiers = ["pods.eks.amazonaws.com"]
+}
+```
+
+The allowed STS actions are:
+
+```hcl
+actions = [
+  "sts:AssumeRole",
+  "sts:TagSession"
+]
+```
+
+This means EKS pods can assume IAM roles only when an EKS Pod Identity association exists.
+
+## Catalog DB Secret Access
+
+For the catalog database, this project uses a least-privilege IAM setup.
+
+Terraform file:
+
+```bash
+Terraform/dev/EKS/EKS_terraform-manifests/c16-03-catalog-db-secret-pod-identity.tf
+```
+
+This file creates:
+
+- IAM policy for reading only `catalog-db-secret*`
+- IAM role for catalog database secret access
+- IAM policy attachment
+- EKS Pod Identity associations
+- Terraform outputs for the policy, role, and association
+
+## Catalog DB Secret Permission Chain
+
+The permission chain for the MySQL pod looks like this:
+
+```bash
+catalog-mysql pod
+  -> ServiceAccount: catalog-mysql-sa
+  -> EKS Pod Identity Association
+  -> IAM Role: retail-dev-catalog-db-secrets-role
+  -> IAM Policy: retail-dev-catalog-db-secret-policy
+  -> AWS Secrets Manager: catalog-db-secret*
+```
+
+The permission chain for the catalog application pod looks like this:
+
+```bash
+catalog application pod
+  -> ServiceAccount: catalog
+  -> EKS Pod Identity Association
+  -> IAM Role: retail-dev-catalog-db-secrets-role
+  -> IAM Policy: retail-dev-catalog-db-secret-policy
+  -> AWS Secrets Manager: catalog-db-secret*
+```
+
+## Least Privilege
+
+The IAM policy allows only these actions:
+
+```bash
+secretsmanager:GetSecretValue
+secretsmanager:DescribeSecret
+```
+
+Only this secret name pattern is allowed:
+
+```bash
+catalog-db-secret*
+```
+
+The wildcard is intentional because AWS Secrets Manager ARNs often include a random suffix after the secret name.
+
+Example allowed secret ARNs:
+
+```bash
+arn:aws:secretsmanager:us-east-1:<account-id>:secret:catalog-db-secret
+arn:aws:secretsmanager:us-east-1:<account-id>:secret:catalog-db-secret-AbCdEf
+```
+
+This policy does not allow access to unrelated secrets such as:
+
+```bash
+checkout-secret
+orders-db-secret
+catalog-api-key
+```
+
+## Important Terraform Variables
+
+The catalog DB secret Pod Identity file includes these variables:
+
+```hcl
+variable "catalog_db_secret_namespace" {
+  default = "default"
+}
+
+variable "catalog_db_secret_service_accounts" {
+  default = [
+    "catalog-mysql-sa",
+    "catalog"
+  ]
+}
+
+variable "catalog_db_secret_name_prefix" {
+  default = "catalog-db-secret"
+}
+```
+
+If the application is deployed into the `micro-tier` namespace or any namesapce you give, update:
+
+```hcl
+catalog_db_secret_namespace = "micro-tier"
+```
+
+The namespace in Terraform must match the namespace where the Kubernetes service account exists.
+
+## Kubernetes Requirement
+
+The pod that needs the secret must use the same service account from the Pod Identity association.
+
+Example:
+
+```yaml
+serviceAccountName: catalog-mysql-sa
+```
+
+or:
+
+```yaml
+serviceAccountName: catalog
+```
+
+If the pod uses a different service account, it will not receive the IAM permissions.
+
+It is okay if the service account does not exist before Terraform creates the Pod Identity association. The service account can be created later, but the name and namespace must match.
+
+## Apply Terraform
+
+Run Terraform from the EKS manifest directory:
+
+```bash
+cd Terraform/dev/EKS/EKS_terraform-manifests
+
+terraform init
+terraform validate
+terraform plan
+terraform apply
+```
+
+## Verify The Add-ons
+
+Check that the EKS Pod Identity Agent is installed:
+
+```bash
+aws eks list-addons \
+  --cluster-name <eks-cluster-name> \
+  --region us-east-1
+```
+
+Expected add-on:
+
+```bash
+eks-pod-identity-agent
+```
+
+Check the Secrets Store CSI Driver and AWS provider pods:
+
+```bash
+kubectl get pods -n kube-system
+```
+
+Expected pods should include:
+
+```bash
+csi-secrets-store-secrets-store-csi-driver-xxxxx
+secrets-provider-aws-secrets-store-csi-driver-provider-aws-xxxxx
+eks-pod-identity-agent-xxxxx
+```
+
+## Verify Pod Identity Association
+
+List Pod Identity associations:
+
+```bash
+aws eks list-pod-identity-associations \
+  --cluster-name <eks-cluster-name> \
+  --region us-east-1
+```
+
+Expected association:
+
+```bash
+namespace: default
+serviceAccount: catalog-mysql-sa
+roleArn: arn:aws:iam::<account-id>:role/retail-dev-catalog-db-secrets-role
+
+namespace: default
+serviceAccount: catalog
+roleArn: arn:aws:iam::<account-id>:role/retail-dev-catalog-db-secrets-role
+```
+
+## Create The Catalog DB Secret In AWS Secrets Manager
+
+Create the AWS Secrets Manager secret that stores the database username and password.
+
+The secret name must match the `objectName` used later in the `SecretProviderClass`.
+
+For this project, the secret name is:
+
+```bash
+catalog-db-secret
+```
+
+Create the secret:
+
+```bash
+aws secretsmanager create-secret \
+  --name catalog-db-secret \
+  --region us-east-1 \
+  --description "MySQL credentials for Catalog microservice" \
+  --secret-string '{
+    "MYSQL_USER": "username",
+    "MYSQL_PASSWORD": "password"
+  }'
+```
+
+Verify the secret exists:
+
+```bash
+aws secretsmanager describe-secret \
+  --secret-id catalog-db-secret \
+  --region us-east-1
+```
+
+Verify the secret value only when needed:
+
+```bash
+aws secretsmanager get-secret-value \
+  --secret-id catalog-db-secret \
+  --region us-east-1 \
+  --query SecretString \
+  --output text
+```
+
+The secret value should contain:
+
+```json
+{
+  "MYSQL_USER": "username",
+  "MYSQL_PASSWORD": "password"
+}
+```
+
+## Create The SecretProviderClass
+
+After the IAM role and Pod Identity associations are ready, create a Kubernetes `SecretProviderClass`.
+
+Manifest file:
+
+```bash
+Kubernetes_Ingress/Kubernetes_Ingress_http/http_retail_store_k8s_manifests/01_catalog/02_catalog_secretproviderclass.yaml
+```
+
+The `SecretProviderClass` tells the Secrets Store CSI Driver:
+
+- Which AWS secret to read
+- Which keys to extract
+- That the pod should authenticate using EKS Pod Identity
+
+Current manifest:
+
+```yaml
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: catalog-db-secrets
+spec:
+  provider: aws
+  parameters:
+    usePodIdentity: "true"
+    objects: |
+      - objectName: "catalog-db-secret"
+        objectType: "secretsmanager"
+        jmesPath:
+          - path: "MYSQL_USER"
+            objectAlias: "MYSQL_USER"
+          - path: "MYSQL_PASSWORD"
+            objectAlias: "MYSQL_PASSWORD"
+```
+
+This configuration:
+
+- Reads `catalog-db-secret` from AWS Secrets Manager.
+- Extracts `MYSQL_USER`.
+- Extracts `MYSQL_PASSWORD`.
+- Mounts the values as files inside the pod.
+- Uses EKS Pod Identity for AWS authentication.
+- Does not create a native Kubernetes Secret.
+
+The mounted files are:
+
+```bash
+/mnt/secrets-store/MYSQL_USER
+/mnt/secrets-store/MYSQL_PASSWORD
+```
+
+## How The Secret Is Mounted Into MySQL
+
+The catalog MySQL StatefulSet uses this service account:
+
+```yaml
+serviceAccountName: catalog-mysql-sa
+```
+
+It mounts the `SecretProviderClass` as a CSI volume:
+
+```yaml
+volumes:
+  - name: aws-secrets
+    csi:
+      driver: secrets-store.csi.k8s.io
+      readOnly: true
+      volumeAttributes:
+        secretProviderClass: catalog-db-secrets
+```
+
+The volume is mounted into the MySQL container:
+
+```yaml
+volumeMounts:
+  - name: aws-secrets
+    mountPath: /mnt/secrets-store
+    readOnly: true
+```
+
+The MySQL container reads the mounted files and exports them as environment variables before starting MySQL:
+
+```bash
+export MYSQL_USER="$(cat /mnt/secrets-store/MYSQL_USER)";
+export MYSQL_PASSWORD="$(cat /mnt/secrets-store/MYSQL_PASSWORD)";
+exec docker-entrypoint.sh mysqld
+```
+
+## How The Catalog App Uses The Same Secret
+
+The catalog application also needs the same database username and password so it can connect to MySQL.
+
+It uses this service account:
+
+```yaml
+serviceAccountName: catalog
+```
+
+It mounts the same `SecretProviderClass`:
+
+```yaml
+secretProviderClass: catalog-db-secrets
+```
+
+Then it maps the mounted file values to the environment variables expected by the catalog application:
+
+```bash
+export RETAIL_CATALOG_PERSISTENCE_USER="$(cat /mnt/secrets-store/MYSQL_USER)";
+export RETAIL_CATALOG_PERSISTENCE_PASSWORD="$(cat /mnt/secrets-store/MYSQL_PASSWORD)";
+exec /app/main
+```
+
+## Important Note About Synchronization
+
+In this project, we are using the more secure file-mounted mode.
+
+That means AWS Secrets Manager is **not synchronized into a native Kubernetes Secret**.
+
+The flow is:
+
+```bash
+AWS Secrets Manager
+  -> Secrets Store CSI Driver
+  -> mounted files in the pod
+  -> application reads files at startup
+```
+
+## Apply The Catalog Manifests
+
+Apply the catalog manifests in this order:
+
+```bash
+cd Kubernetes_Ingress/Kubernetes_Ingress_http/http_retail_store_k8s_manifests/
+
+
+## Verify The Secret Mount
+
+Check the MySQL pod:
+
+```bash
+kubectl get pods
+kubectl describe pod <catalog-mysql-pod-name>
+```
+
+Look for the CSI volume:
+
+```bash
+secrets-store.csi.k8s.io
+catalog-db-secrets
+```
+
+Verify the mounted files from inside the pod:
+
+```bash
+kubectl exec -it <catalog-mysql-pod-name> -- ls /mnt/secrets-store
+```
+
+Expected files:
+
+```bash
+MYSQL_USER
+MYSQL_PASSWORD
+```
+
+If the pod cannot mount the secret, check:
+
+- The AWS secret name is `catalog-db-secret`.
+- The `SecretProviderClass` name is `catalog-db-secrets`.
+- The pod service account is associated with the IAM role through EKS Pod Identity.
+- The IAM policy allows `secretsmanager:GetSecretValue` for `catalog-db-secret*`.
+- The Secrets Store CSI Driver and AWS provider pods are running in `kube-system`.
+
+
+
 # Step 7: Install & Configure ArgoCD
 
 We will be deploying our agrocd application on a micro-tier namespace.
@@ -650,7 +1208,9 @@ It does not:
 
 Those actions belong in a separate CD workflow. The next step is to create a separate workflow that builds Docker images for each microservice and pushes them to AWS ECR after CI passes.
 
-Step-08-08: Build And Push Docker Images To AWS ECR
+# Step-08-08: Build And Push Docker Images To AWS ECR
+
+<img width="1837" height="831" alt="Image" src="https://github.com/user-attachments/assets/9137830b-a3ee-4a3c-b573-ceaf7dd47c0f" />
 
 After the CI workflow is working, the next step is to package each microservice into a Docker image and push those images to AWS ECR.
 
@@ -783,11 +1343,11 @@ Each image is tagged with the first seven characters of the Git commit SHA.
 Example:
 
 ```bash
-314146307160.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/catalog:a1b2c3d
-314146307160.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/cart:a1b2c3d
-314146307160.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/checkout:a1b2c3d
-314146307160.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/orders:a1b2c3d
-314146307160.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/ui:a1b2c3d
+123456789.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/catalog:a1b2c3d
+123456789.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/cart:a1b2c3d
+123456789.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/checkout:a1b2c3d
+123456789.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/orders:a1b2c3d
+123456789.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/ui:a1b2c3d
 ```
 
 This is better than only using `latest` because it gives traceability. Later, when we deploy, we can choose the exact tested image tag to release.
@@ -825,7 +1385,7 @@ Each service defines:
 
 ## How To Test The ECR Workflow
 
-After committing and pushing the workflow, open GitHub:
+After committing and pushing the workflow, open GitHub, test it from the main branch if the workflow file is already merged there:
 
 ```bash
 Actions -> Build and Push Images to ECR -> Run workflow
@@ -873,3 +1433,5 @@ At that point, we will decide whether to deploy with:
 - ArgoCD GitOps.
 
 The production deployment workflow should use the exact image tags created by this ECR workflow.
+
+
