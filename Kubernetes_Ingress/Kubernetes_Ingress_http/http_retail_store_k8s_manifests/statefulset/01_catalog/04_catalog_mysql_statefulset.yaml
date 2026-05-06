@@ -48,7 +48,7 @@ spec:
             - name: aws-secrets
               mountPath: /mnt/secrets-store
               readOnly: true
-            - name: data
+            - name: data-ebs
               mountPath: /var/lib/mysql
           ports:
             - name: mysql
@@ -61,5 +61,13 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: catalog-db-secrets
-        - name: data
-          emptyDir: {}
+  # Added for provisioning EBS volumes.
+  volumeClaimTemplates:
+    - metadata:
+        name: data-ebs
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: ebs-sc

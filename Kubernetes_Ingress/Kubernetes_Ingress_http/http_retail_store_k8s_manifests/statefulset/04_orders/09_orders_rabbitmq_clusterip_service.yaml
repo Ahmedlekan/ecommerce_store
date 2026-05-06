@@ -26,3 +26,4 @@ spec:
     app.kubernetes.io/instance: orders
     app.kubernetes.io/component: rabbitmq
     app.kubernetes.io/owner: retail-store-sample
+    

@@ -1,12 +1,12 @@
-# Source: retail-store-sample-checkout-chart/templates/deployment.yaml
+# Source: retail-store-sample-cart-chart/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: checkout
+  name: carts
   labels:
-    helm.sh/chart: checkout-1.2.4
-    app.kubernetes.io/name: checkout
-    app.kubernetes.io/instance: checkout
+    helm.sh/chart: carts-1.2.4
+    app.kubernetes.io/name: carts
+    app.kubernetes.io/instance: carts
     app.kubernetes.io/component: service
     app.kubernetes.io/owner: retail-store-sample
     app.kubernetes.io/managed-by: Helm
@@ -18,30 +18,33 @@ spec:
     type: RollingUpdate
   selector:
     matchLabels:
-      app.kubernetes.io/name: checkout
-      app.kubernetes.io/instance: checkout
+      app.kubernetes.io/name: carts
+      app.kubernetes.io/instance: carts
       app.kubernetes.io/component: service
       app.kubernetes.io/owner: retail-store-sample
   template:
     metadata:
       annotations:
-        prometheus.io/path: /metrics
+        prometheus.io/path: /actuator/prometheus
         prometheus.io/port: "8080"
         prometheus.io/scrape: "true"
       labels:
-        app.kubernetes.io/name: checkout
-        app.kubernetes.io/instance: checkout
+        app.kubernetes.io/name: carts
+        app.kubernetes.io/instance: carts
         app.kubernetes.io/component: service
         app.kubernetes.io/owner: retail-store-sample
     spec:
-      serviceAccountName: checkout
+      serviceAccountName: carts
       securityContext:
         fsGroup: 1000
       containers:
-        - name: checkout
+        - name: carts
+          env:
+            - name: JAVA_OPTS
+              value: -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/urandom
           envFrom:
             - configMapRef:
-                name: checkout
+                name: carts
           securityContext:
             capabilities:
               drop:
@@ -49,7 +52,7 @@ spec:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
             runAsUser: 1000
-          image: ""
+          image: "314146307160.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/cart:c58ef6e"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -57,15 +60,16 @@ spec:
               protocol: TCP
           readinessProbe:
             httpGet:
-              path: /health
+              path: /actuator/health/readiness
               port: 8080
+            initialDelaySeconds: 10
           resources:
             limits:
               cpu: 500m
-              memory: 256Mi
+              memory: 512Mi
             requests:
-              cpu: 128m
-              memory: 256Mi
+              cpu: 256m
+              memory: 512Mi
           volumeMounts:
             - mountPath: /tmp
               name: tmp-volume

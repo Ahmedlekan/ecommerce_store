@@ -1,12 +1,12 @@
-# Source: retail-store-sample-ui-chart/templates/deployment.yaml
+# Source: retail-store-sample-cart-chart/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ui
+  name: carts
   labels:
-    helm.sh/chart: ui-1.2.4
-    app.kubernetes.io/name: ui
-    app.kubernetes.io/instance: ui
+    helm.sh/chart: carts-1.2.4
+    app.kubernetes.io/name: carts
+    app.kubernetes.io/instance: carts
     app.kubernetes.io/component: service
     app.kubernetes.io/owner: retail-store-sample
     app.kubernetes.io/managed-by: Helm
@@ -18,8 +18,8 @@ spec:
     type: RollingUpdate
   selector:
     matchLabels:
-      app.kubernetes.io/name: ui
-      app.kubernetes.io/instance: ui
+      app.kubernetes.io/name: carts
+      app.kubernetes.io/instance: carts
       app.kubernetes.io/component: service
       app.kubernetes.io/owner: retail-store-sample
   template:
@@ -29,44 +29,30 @@ spec:
         prometheus.io/port: "8080"
         prometheus.io/scrape: "true"
       labels:
-        app.kubernetes.io/name: ui
-        app.kubernetes.io/instance: ui
+        app.kubernetes.io/name: carts
+        app.kubernetes.io/instance: carts
         app.kubernetes.io/component: service
         app.kubernetes.io/owner: retail-store-sample
     spec:
-      serviceAccountName: ui
+      serviceAccountName: carts
       securityContext:
         fsGroup: 1000
       containers:
-        - name: ui
+        - name: carts
           env:
             - name: JAVA_OPTS
               value: -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/urandom
-            - name: METADATA_KUBERNETES_POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: METADATA_KUBERNETES_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: METADATA_KUBERNETES_NODE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
           envFrom:
             - configMapRef:
-                name: ui
+                name: carts
           securityContext:
             capabilities:
-              add:
-              - NET_BIND_SERVICE
               drop:
               - ALL
             readOnlyRootFilesystem: true
             runAsNonRoot: true
             runAsUser: 1000
-          image: ""
+          image: "314146307160.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/cart:c58ef6e"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -82,7 +68,7 @@ spec:
               cpu: 500m
               memory: 512Mi
             requests:
-              cpu: 128m
+              cpu: 256m
               memory: 512Mi
           volumeMounts:
             - mountPath: /tmp
@@ -91,4 +77,3 @@ spec:
         - name: tmp-volume
           emptyDir:
             medium: Memory
-

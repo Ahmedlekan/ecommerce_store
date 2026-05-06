@@ -27,10 +27,22 @@ spec:
         app.kubernetes.io/component: rabbitmq
         app.kubernetes.io/owner: retail-store-sample
     spec:
+      # RabbitMQ needs its own Pod Identity-backed service account so it can
+      # mount broker credentials from AWS Secrets Manager before startup.
+      serviceAccountName: orders-rabbitmq-sa
       containers:
         - name: rabbitmq
           image: "public.ecr.aws/docker/library/rabbitmq:3-management"
           imagePullPolicy: IfNotPresent
+          # Export the broker credentials from the CSI-mounted secret files
+          # before handing control back to the standard RabbitMQ entrypoint.
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              export RABBITMQ_DEFAULT_USER="$(cat /mnt/secrets-store/RETAIL_ORDERS_MESSAGING_RABBITMQ_USERNAME)";
+              export RABBITMQ_DEFAULT_PASS="$(cat /mnt/secrets-store/RETAIL_ORDERS_MESSAGING_RABBITMQ_PASSWORD)";
+              echo "Loaded RabbitMQ credentials from AWS Secrets Manager. Starting RabbitMQ.";
+              exec docker-entrypoint.sh rabbitmq-server
           ports:
           - name: amqp
             containerPort: 5672
@@ -39,8 +51,20 @@ spec:
             containerPort: 15672
             protocol: TCP
           volumeMounts:
+          # Mount the Secrets Store CSI volume so the broker can read its
+          # username and password files from AWS Secrets Manager.
+          - name: aws-secrets
+            mountPath: /mnt/secrets-store
+            readOnly: true
           - name: data
             mountPath: "/var/lib/rabbitmq/mnesia"
       volumes:
+      # The Orders messaging secret is mounted as files from AWS Secrets Manager.
+      - name: aws-secrets
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: orders-runtime-secrets
       - name: data
         emptyDir: {}
