@@ -17,3 +17,4 @@ output "public_subnet_map" {
   description = "Map of AZ to public subnet ID"
   value       = { for az, subnet in aws_subnet.public : az => subnet.id }
 }
+
