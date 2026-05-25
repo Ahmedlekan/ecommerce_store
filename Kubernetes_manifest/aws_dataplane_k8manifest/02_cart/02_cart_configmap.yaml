@@ -1,0 +1,17 @@
+# Source: retail-store-sample-cart-chart/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: micro-tier
+  name: carts
+data:
+  RETAIL_CART_PERSISTENCE_PROVIDER: dynamodb
+  # Keep the table name aligned with the Terraform-managed DynamoDB table.
+  RETAIL_CART_PERSISTENCE_DYNAMODB_TABLE_NAME: Items
+  # Terraform creates the table, so the app should not try to recreate it.
+  RETAIL_CART_PERSISTENCE_DYNAMODB_CREATE_TABLE: "false"
+  AWS_REGION: us-west-2
+  AWS_DEFAULT_REGION: us-west-2
+  RETAIL_CART_PERSISTENCE_DYNAMODB_ENDPOINT: http://dynamodb.us-west-2.amazonaws.com
+  # No endpoint is set here so the AWS SDK talks to the real DynamoDB service
+  # using EKS Pod Identity instead of the local DynamoDB container.

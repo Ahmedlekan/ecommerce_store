@@ -1,0 +1,11 @@
+# Source: retail-store-sample-catalog-chart/templates/configmap.yml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: micro-tier
+  name: catalog
+data:
+  RETAIL_CATALOG_PERSISTENCE_PROVIDER: mysql
+  # The ExternalName service below resolves catalog-mysql to the RDS endpoint.
+  RETAIL_CATALOG_PERSISTENCE_ENDPOINT: mydb3.cyf2aa0ggkmv.us-east-1.rds.amazonaws.com:3306
+  RETAIL_CATALOG_PERSISTENCE_DB_NAME: catalog

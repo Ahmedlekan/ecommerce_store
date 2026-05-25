@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: orders-postgresql-client
+  namespace: micro-tier
+spec:
+  # Reuse the orders service account so the pod gets the same Pod Identity access
+  # that the orders application uses for Secrets Manager.
+  serviceAccountName: orders
+  restartPolicy: Never
+  containers:
+    - name: psql-client
+      image: postgres:17.6
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          echo "Client pod ready.";
+          echo "Read PostgreSQL credentials from /mnt/secrets-store when connecting.";
+          sleep infinity
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+        limits:
+          cpu: "200m"
+          memory: "256Mi"
+      env:
+        # Keep the endpoint and database name aligned with the orders app config.
+        - name: PG_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: orders
+              key: RETAIL_ORDERS_PERSISTENCE_ENDPOINT
+        - name: PGDATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: orders
+              key: RETAIL_ORDERS_PERSISTENCE_NAME
+      volumeMounts:
+        # Mount the same Secrets Store CSI volume used by the app so this pod
+        # can read PostgreSQL credentials from files.
+        - name: aws-secrets
+          mountPath: /mnt/secrets-store
+          readOnly: true
+  volumes:
+    # Expose the orders database secret through the SecretProviderClass.
+    - name: aws-secrets
+      csi:
+        driver: secrets-store.csi.k8s.io
+        readOnly: true
+        volumeAttributes:
+          secretProviderClass: orders-runtime-secrets

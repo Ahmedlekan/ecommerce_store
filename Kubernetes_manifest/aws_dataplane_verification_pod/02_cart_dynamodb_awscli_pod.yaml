@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: carts-dynamodb-client
+  namespace: micro-tier
+spec:
+  serviceAccountName: carts
+  containers:
+  - name: aws-cli
+    image: amazon/aws-cli
+    command: ["/bin/sh"]
+    args: ["-c", "sleep infinity"]
+    env:
+      - name: AWS_REGION
+        valueFrom:
+          configMapKeyRef:
+            name: carts
+            key: AWS_REGION
+    resources:
+      limits:
+        cpu: 200m
+        memory: 128Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  restartPolicy: Never

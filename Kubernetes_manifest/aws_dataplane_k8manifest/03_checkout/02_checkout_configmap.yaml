@@ -1,0 +1,14 @@
+# Source: retail-store-sample-checkout-chart/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: micro-tier
+  name: checkout
+data:
+  RETAIL_CHECKOUT_PERSISTENCE_PROVIDER: redis
+  # Point checkout at the Terraform-managed ElastiCache endpoint after apply.
+  # Replace the placeholder with the value from `checkout_redis_primary_endpoint`.
+  RETAIL_CHECKOUT_PERSISTENCE_REDIS_URL: "redis://retail-dev-checkout-redis.tzye93.ng.0001.use1.cache.amazonaws.com:6379"
+  RETAIL_CHECKOUT_ENDPOINTS_ORDERS: http://orders:80
+
+

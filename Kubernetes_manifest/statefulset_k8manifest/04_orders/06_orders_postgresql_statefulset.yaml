@@ -1,0 +1,73 @@
+# Source: retail-store-sample-orders-chart/templates/postgresql-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  namespace: micro-tier
+  name: orders-postgresql
+  labels:
+    helm.sh/chart: orders-1.2.4
+    app.kubernetes.io/name: orders
+    app.kubernetes.io/instance: orders
+    app.kubernetes.io/component: postgresql
+    app.kubernetes.io/owner: retail-store-sample
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  serviceName: orders-postgresql
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orders
+      app.kubernetes.io/instance: orders
+      app.kubernetes.io/component: postgresql
+      app.kubernetes.io/owner: retail-store-sample
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orders
+        app.kubernetes.io/instance: orders
+        app.kubernetes.io/component: postgresql
+        app.kubernetes.io/owner: retail-store-sample
+    spec:
+      # PostgreSQL needs its own Pod Identity-backed service account so it can
+      # mount credentials from AWS Secrets Manager before the database starts.
+      serviceAccountName: orders-postgresql-sa
+      containers:
+        - name: postgresql
+          image: "public.ecr.aws/docker/library/postgres:16.1"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_DB
+              value: orders
+            - name: PGDATA
+              value: /data/pgdata
+          # Export the DB credentials from the CSI-mounted secret files before
+          # handing control back to the standard PostgreSQL entrypoint.
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              export POSTGRES_USER="$(cat /mnt/secrets-store/RETAIL_ORDERS_PERSISTENCE_USERNAME)";
+              export POSTGRES_PASSWORD="$(cat /mnt/secrets-store/RETAIL_ORDERS_PERSISTENCE_PASSWORD)";
+              echo "Loaded orders PostgreSQL credentials from AWS Secrets Manager. Starting PostgreSQL.";
+              exec docker-entrypoint.sh postgres
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            # Mount the Secrets Store CSI volume so the DB pod can read the
+            # username and password files from AWS Secrets Manager.
+            - name: aws-secrets
+              mountPath: /mnt/secrets-store
+              readOnly: true
+          ports:
+            - name: postgresql
+              containerPort: 5432
+              protocol: TCP
+      volumes:
+      - name: data
+        emptyDir: {}
+      # The Orders DB secret is mounted as files from AWS Secrets Manager.
+      - name: aws-secrets
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: orders-runtime-secrets

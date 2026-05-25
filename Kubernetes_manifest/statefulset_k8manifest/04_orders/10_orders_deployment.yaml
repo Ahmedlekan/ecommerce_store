@@ -1,0 +1,104 @@
+# Source: retail-store-sample-orders-chart/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: micro-tier
+  name: orders
+  labels:
+    helm.sh/chart: orders-1.2.4
+    app.kubernetes.io/name: orders
+    app.kubernetes.io/instance: orders
+    app.kubernetes.io/component: service
+    app.kubernetes.io/owner: retail-store-sample
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 1
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orders
+      app.kubernetes.io/instance: orders
+      app.kubernetes.io/component: service
+      app.kubernetes.io/owner: retail-store-sample
+  template:
+    metadata:
+      annotations:
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: "8080"
+        prometheus.io/scrape: "true"
+      labels:
+        app.kubernetes.io/name: orders
+        app.kubernetes.io/instance: orders
+        app.kubernetes.io/component: service
+        app.kubernetes.io/owner: retail-store-sample
+    spec:
+      serviceAccountName: orders
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: orders
+          env:
+            - name: JAVA_OPTS
+              value: -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/urandom
+          envFrom:
+            - configMapRef:
+                name: orders
+          # Export the DB and RabbitMQ credentials from CSI-mounted files so
+          # the Spring app keeps receiving the same env var names it previously
+          # got from Kubernetes Secrets.
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              export RETAIL_ORDERS_PERSISTENCE_USERNAME="$(cat /mnt/secrets-store/RETAIL_ORDERS_PERSISTENCE_USERNAME)";
+              export RETAIL_ORDERS_PERSISTENCE_PASSWORD="$(cat /mnt/secrets-store/RETAIL_ORDERS_PERSISTENCE_PASSWORD)";
+              export RETAIL_ORDERS_MESSAGING_RABBITMQ_USERNAME="$(cat /mnt/secrets-store/RETAIL_ORDERS_MESSAGING_RABBITMQ_USERNAME)";
+              export RETAIL_ORDERS_MESSAGING_RABBITMQ_PASSWORD="$(cat /mnt/secrets-store/RETAIL_ORDERS_MESSAGING_RABBITMQ_PASSWORD)";
+              echo "Loaded orders database and RabbitMQ credentials from AWS Secrets Manager. Starting orders service.";
+              exec java $JAVA_OPTS -jar /app/app.jar
+          securityContext:
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+          image: "314146307160.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/orders:c58ef6e"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 10
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 256m
+              memory: 512Mi
+          volumeMounts:
+            # Mount the Secrets Store CSI volume so the app can read DB
+            # credentials from AWS Secrets Manager at startup.
+            - name: aws-secrets
+              mountPath: /mnt/secrets-store
+              readOnly: true
+            - mountPath: /tmp
+              name: tmp-volume
+      volumes:
+        # The Orders DB secret is mounted as files from AWS Secrets Manager.
+        - name: aws-secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: orders-runtime-secrets
+        - name: tmp-volume
+          emptyDir:
+            medium: Memory
