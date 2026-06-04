@@ -12,10 +12,12 @@ metadata:
     app.kubernetes.io/owner: retail-store-sample
     app.kubernetes.io/managed-by: Helm
 spec:
-  replicas: 1
+  # replicas: 1 # Previous single-pod setting kept for comparison; not enough for production PDB protection.
+  replicas: 3 # Runs three catalog pods so the PDB can allow one voluntary eviction while two remain available.
   strategy:
     rollingUpdate:
       maxUnavailable: 1
+      maxSurge: 1 # Allows Kubernetes to create one extra catalog pod during rolling updates for safer replacement.
     type: RollingUpdate
   selector:
     matchLabels:
