@@ -1,0 +1,13 @@
+apiVersion: policy/v1 # Uses the stable Kubernetes policy API for PodDisruptionBudget resources.
+kind: PodDisruptionBudget # Declares that this manifest protects matching pods during voluntary disruptions.
+metadata: # Starts the object metadata block.
+  name: orders-pdb # Names the PDB for the orders application workload.
+  namespace: micro-tier # Places the PDB in the same namespace as the orders Deployment.
+spec: # Starts the desired PDB behavior.
+  minAvailable: 2 # Requires at least two orders pods to stay available during voluntary disruption.
+  selector: # Starts the pod selector that tells the PDB which pods it protects.
+    matchLabels: # Matches pods with the same labels used by the orders Deployment selector.
+      app.kubernetes.io/name: orders # Selects pods whose application name is orders.
+      app.kubernetes.io/instance: orders # Selects pods from the orders release instance.
+      app.kubernetes.io/component: service # Selects only the service component pods.
+      app.kubernetes.io/owner: retail-store-sample # Selects pods owned by the retail-store-sample application.
