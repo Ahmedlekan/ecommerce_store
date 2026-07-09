@@ -1,0 +1,45 @@
+Catalog chart deployed.
+
+Release:
+  {{ .Release.Name }}
+
+Namespace:
+  {{ .Release.Namespace }}
+
+Environment:
+  {{ .Values.environment.name }}
+
+Catalog service:
+  {{ include "catalog.fullname" . }}
+
+{{- if .Values.mysql.enabled }}
+MySQL service:
+  {{ include "catalog.mysqlFullname" . }}:{{ .Values.mysql.service.port }}
+{{- else }}
+External database endpoint:
+  {{ .Values.configMap.externalEndpoint }}
+{{- end }}
+
+Useful commands:
+
+  kubectl get pods -n {{ .Release.Namespace }}
+  kubectl get svc -n {{ .Release.Namespace }}
+  kubectl describe deploy/{{ include "catalog.fullname" . }} -n {{ .Release.Namespace }}
+
+{{- if .Values.mysql.enabled }}
+  kubectl describe statefulset/{{ include "catalog.mysqlFullname" . }} -n {{ .Release.Namespace }}
+  kubectl get pvc -n {{ .Release.Namespace }}
+{{- end }}
+
+Port-forward the catalog service:
+
+  kubectl port-forward svc/{{ include "catalog.fullname" . }} -n {{ .Release.Namespace }} 7080:{{ .Values.service.port }}
+
+Then open:
+
+  http://127.0.0.1:7080
+
+Secrets Store CSI checks:
+
+  kubectl get secretproviderclass -n {{ .Release.Namespace }}
+  kubectl describe pod -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}

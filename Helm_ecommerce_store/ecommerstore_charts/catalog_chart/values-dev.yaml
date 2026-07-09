@@ -1,0 +1,18 @@
+# Development profile keeps a single replica and in-cluster MySQL.
+environment:
+  name: dev
+
+replicaCount: 1
+
+autoscaling:
+  enabled: false
+
+monitoring:
+  serviceMonitor:
+    enabled: false
+
+mysql:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 10Gi

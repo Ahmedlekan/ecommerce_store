@@ -6,7 +6,7 @@ data "terraform_remote_state" "eks" {
 
   config = {
     bucket = "tfstate-dev-us-east-1-ahmedlekan"          # Name of the remote S3 bucket where the EKS state is stored
-    key    = "eks-statefulset/cluster-and-addons/dev/terraform.tfstate" # Path to the EKS tfstate file within the bucket
+    key    = "eks-aws-dataplane/cluster-and-addons/dev/terraform.tfstate" # Path to the EKS tfstate file within the bucket
     region = var.aws_region                          # Region where the S3 bucket exist
   }
 }

@@ -1,0 +1,159 @@
+# Default values for the catalog chart.
+# This chart is designed around the current production-like stateful catalog
+# pattern used in this repository: catalog app + optional in-cluster MySQL +
+# AWS Secrets Manager via Secrets Store CSI.
+
+# Name overrides let you keep stable resource names across environments when needed.
+nameOverride: "catalog"
+fullnameOverride: ""
+
+# Environment metadata is surfaced as labels and helps separate dev/stage/prod releases.
+environment:
+  name: dev
+
+# Replica count only applies to the catalog application deployment.
+replicaCount: 1
+
+# Catalog application container image settings.
+image:
+  repository: 314146307160.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/catalog
+  tag: c58ef6e
+  pullPolicy: IfNotPresent
+
+# Optional image pull secrets for private registries.
+imagePullSecrets: []
+
+# Application service account configuration.
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Pod-level annotations merged with monitoring annotations when enabled.
+podAnnotations: {}
+
+# Pod security context for the catalog container.
+podSecurityContext:
+  fsGroup: 1000
+
+# Container security context for the catalog container.
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# ClusterIP service settings for the catalog API.
+service:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+
+# Resource requests and limits for the catalog app.
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 256m
+    memory: 256Mi
+
+# Optional horizontal pod autoscaling for the catalog app.
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+
+# Optional pod disruption budget for the catalog app.
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+# Optional node placement controls.
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+
+# Monitoring options for Prometheus scraping and optional ServiceMonitor creation.
+monitoring:
+  enabled: true
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+  serviceMonitor:
+    enabled: false
+    namespace: ""
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}
+
+# ConfigMap values consumed by the catalog app.
+configMap:
+  create: true
+  name: ""
+  persistenceProvider: mysql
+  databaseName: catalog
+  # externalEndpoint is required only when mysql.enabled is false.
+  externalEndpoint: ""
+
+# Secrets Store CSI settings for reading DB credentials from AWS Secrets Manager.
+secretStore:
+  enabled: true
+  providerClass:
+    create: true
+    name: catalog-db-secrets
+  provider: aws
+  usePodIdentity: true
+  secretName: catalog-db-secret
+  objectType: secretsmanager
+  keys:
+    user: MYSQL_USER
+    password: MYSQL_PASSWORD
+
+# In-cluster MySQL component used by the stateful catalog pattern.
+mysql:
+  enabled: true
+  serviceAccount:
+    create: true
+    name: catalog-mysql-sa
+    annotations: {}
+  image:
+    repository: public.ecr.aws/docker/library/mysql
+    tag: "8.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 3306
+    annotations: {}
+  # Root password is still needed by the MySQL image even though the app user
+  # credentials come from Secrets Manager.
+  auth:
+    rootPassword: CHANGE_ME
+    database: catalog
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 256m
+      memory: 256Mi
+  persistence:
+    enabled: true
+    size: 10Gi
+    accessModes:
+      - ReadWriteOnce
+    storageClassName: ebs-sc
+    storageClass:
+      create: false
+      name: ebs-sc
+      allowVolumeExpansion: true
+      reclaimPolicy: Delete
+      volumeBindingMode: WaitForFirstConsumer
+      parameters:
+        type: gp3
+        fsType: ext4

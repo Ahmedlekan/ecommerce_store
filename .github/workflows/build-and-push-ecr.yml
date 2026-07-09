@@ -91,7 +91,7 @@ jobs:
 
       # Login Docker to Amazon ECR.
       # The action returns the registry URI, for example:
-      # 314146307160.dkr.ecr.us-east-1.amazonaws.com
+      # 123456789.dkr.ecr.us-east-1.amazonaws.com
       - name: Login to Amazon ECR
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2

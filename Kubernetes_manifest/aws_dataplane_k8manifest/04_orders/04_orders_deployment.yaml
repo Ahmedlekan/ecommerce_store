@@ -12,10 +12,11 @@ metadata:
     app.kubernetes.io/owner: retail-store-sample
     app.kubernetes.io/managed-by: Helm
 spec:
-  replicas: 1
+  replicas: 1 # Runs one orders pod for simpler deployment.
   strategy:
     rollingUpdate:
       maxUnavailable: 1
+      maxSurge: 1 # Allows Kubernetes to create one extra orders pod during rolling updates for safer replacement.
     type: RollingUpdate
   selector:
     matchLabels:
@@ -35,6 +36,28 @@ spec:
         app.kubernetes.io/component: service
         app.kubernetes.io/owner: retail-store-sample
     spec:
+      topologySpreadConstraints:
+        # Spread across nodes within the same availability zone.
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: orders
+              app.kubernetes.io/component: service
+              app.kubernetes.io/instance: orders
+
+        # Spread across availability zones when multiple zones are available.
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule # ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: orders
+              app.kubernetes.io/component: service
+              app.kubernetes.io/instance: orders
+      nodeSelector:
+        karpenter.sh/capacity-type: on-demand
       serviceAccountName: orders
       securityContext:
         fsGroup: 1000
@@ -43,6 +66,31 @@ spec:
           env:
             - name: JAVA_OPTS
               value: -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/urandom
+            - name: OTEL_SERVICE_NAME
+              value: orders
+            - name: OTEL_SDK_DISABLED
+              value: "false"
+            - name: OTEL_RESOURCE_PROVIDERS_AWS_ENABLED
+              value: "true"
+            - name: OTEL_TRACES_EXPORTER
+              value: otlp
+            - name: OTEL_METRICS_EXPORTER
+              value: none
+            - name: OTEL_LOGS_EXPORTER
+              value: none
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://adot-traces-collector.micro-tier.svc.cluster.local:4318
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: http/protobuf
+            - name: OTEL_PROPAGATORS
+              value: tracecontext,baggage,xray
+            - name: OTEL_TRACES_SAMPLER
+              value: always_on
+            # Production option: use ratio-based sampling to reduce trace volume and cost.
+            # - name: OTEL_TRACES_SAMPLER
+            #   value: traceidratio
+            # - name: OTEL_TRACES_SAMPLER_ARG
+            #   value: "0.10"
           envFrom:
             - configMapRef:
                 name: orders

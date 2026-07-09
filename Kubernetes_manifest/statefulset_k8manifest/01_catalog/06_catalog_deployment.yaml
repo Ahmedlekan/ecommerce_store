@@ -12,7 +12,6 @@ metadata:
     app.kubernetes.io/owner: retail-store-sample
     app.kubernetes.io/managed-by: Helm
 spec:
-  # replicas: 1 # Previous single-pod setting kept for comparison; not enough for production PDB protection.
   replicas: 3 # Runs three catalog pods so the PDB can allow one voluntary eviction while two remain available.
   strategy:
     rollingUpdate:
@@ -37,6 +36,30 @@ spec:
         app.kubernetes.io/component: service
         app.kubernetes.io/owner: retail-store-sample
     spec:
+    # TOPOLOGY SPREAD CONSTRAINTS - Distribute pods across nodes AND availability zones
+      topologySpreadConstraints:
+        # Spread across nodes (within same AZ)
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: catalog
+              app.kubernetes.io/component: service
+              app.kubernetes.io/instance: catalog
+        
+        # Spread across availability zones
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: catalog
+              app.kubernetes.io/component: service
+              app.kubernetes.io/instance: catalog    
+      # THIS IS CRITICAL - Forces pods to run ONLY on on-demand nodes
+      nodeSelector:
+        karpenter.sh/capacity-type: on-demand
       serviceAccountName: catalog
       securityContext:
         fsGroup: 1000

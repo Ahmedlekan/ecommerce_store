@@ -26,7 +26,7 @@ variable "catalog_db_secret_service_accounts" {
   description = "Kubernetes service accounts associated with the catalog RDS Secrets Manager IAM role."
   type        = set(string)
   default = [
-    "dev-catalog"
+    "catalog"
   ]
 }
 

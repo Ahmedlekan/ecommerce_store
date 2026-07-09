@@ -1,0 +1,20 @@
+# Staging profile stays close to production while keeping scale moderate.
+environment:
+  name: staging
+
+replicaCount: 2
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+
+monitoring:
+  serviceMonitor:
+    enabled: true
+
+mysql:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 20Gi

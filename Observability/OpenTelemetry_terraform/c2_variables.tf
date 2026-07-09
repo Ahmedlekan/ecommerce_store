@@ -38,6 +38,18 @@ variable "adot_collector_namespace" {
 }
 
 # --------------------------------------------------------
+# Amazon Managed Grafana Access
+# --------------------------------------------------------
+
+# IAM Identity Center user IDs that should be assigned Admin access to the Grafana workspace.
+# These are Identity Store UserId values, not IAM user names or email addresses.
+variable "grafana_admin_user_ids" {
+  description = "IAM Identity Center user IDs to assign as Amazon Managed Grafana workspace admins"
+  type        = list(string)
+  default     = []
+}
+
+# --------------------------------------------------------
 # Common Tags
 # --------------------------------------------------------
 

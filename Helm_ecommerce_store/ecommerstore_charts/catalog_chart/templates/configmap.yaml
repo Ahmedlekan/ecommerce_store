@@ -1,0 +1,16 @@
+{{- if .Values.configMap.create }}
+# ConfigMap for non-secret catalog runtime settings.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "catalog.configMapName" . }}
+  labels:
+    {{- include "catalog.labels" . | nindent 4 }}
+data:
+  # The catalog persistence provider remains mysql in both in-cluster and external DB modes.
+  RETAIL_CATALOG_PERSISTENCE_PROVIDER: {{ .Values.configMap.persistenceProvider | quote }}
+  # The endpoint is computed from either the in-cluster MySQL service or an external override.
+  RETAIL_CATALOG_PERSISTENCE_ENDPOINT: {{ include "catalog.persistenceEndpoint" . | quote }}
+  # The database name is shared by the app and MySQL initialization logic.
+  RETAIL_CATALOG_PERSISTENCE_DB_NAME: {{ .Values.configMap.databaseName | quote }}
+{{- end }}

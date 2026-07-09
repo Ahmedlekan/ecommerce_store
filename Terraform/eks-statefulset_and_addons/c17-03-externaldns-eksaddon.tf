@@ -47,3 +47,4 @@ output "externaldns_addon_arn" {
 output "externaldns_addon_id" {
   value = aws_eks_addon.externaldns.id
 }
+

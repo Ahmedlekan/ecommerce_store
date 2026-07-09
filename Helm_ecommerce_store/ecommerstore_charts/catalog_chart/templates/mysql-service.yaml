@@ -1,0 +1,26 @@
+{{- if .Values.mysql.enabled }}
+# Service that gives the catalog app a stable MySQL endpoint.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "catalog.mysqlFullname" . }}
+  labels:
+    helm.sh/chart: {{ include "catalog.chart" . }}
+    {{- include "catalog.mysqlSelectorLabels" . | nindent 4 }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/part-of: ecommerce-store
+    app.kubernetes.io/environment: {{ .Values.environment.name | quote }}
+  {{- with .Values.mysql.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.mysql.service.type }}
+  ports:
+    - port: {{ .Values.mysql.service.port }}
+      targetPort: mysql
+      protocol: TCP
+      name: mysql
+  selector:
+    {{- include "catalog.mysqlSelectorLabels" . | nindent 4 }}
+{{- end }}

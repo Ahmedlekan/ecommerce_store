@@ -22,7 +22,7 @@ variable "orders_secret_name_prefixes" {
   description = "Secrets Manager secret name prefixes for the orders database secret."
   type        = list(string)
   default = [
-    "dev-orders-db-secret"
+    "orders-db-secret"
   ]
 }
 

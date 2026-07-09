@@ -1,0 +1,25 @@
+{{/*
+Validation keeps bad combinations from making it to the cluster.
+This chart intentionally fails early instead of rendering broken manifests.
+*/}}
+{{- if not .Values.secretStore.enabled -}}
+{{- fail "secretStore.enabled=false is not supported in this chart. The stateful catalog pattern expects AWS Secrets Manager through CSI." -}}
+{{- end -}}
+{{- if and .Values.secretStore.providerClass.create (empty .Values.secretStore.secretName) -}}
+{{- fail "secretStore.secretName must be set when secretStore.providerClass.create=true." -}}
+{{- end -}}
+{{- if and .Values.mysql.enabled (empty .Values.mysql.auth.rootPassword) -}}
+{{- fail "mysql.auth.rootPassword must be set for the MySQL image initialization flow." -}}
+{{- end -}}
+{{- if and (not .Values.mysql.enabled) (empty .Values.configMap.externalEndpoint) -}}
+{{- fail "configMap.externalEndpoint must be set when mysql.enabled=false." -}}
+{{- end -}}
+{{- if and .Values.mysql.enabled .Values.mysql.persistence.enabled (empty .Values.mysql.persistence.storageClassName) (not .Values.mysql.persistence.storageClass.create) -}}
+{{- fail "mysql.persistence.storageClassName must be set when persistence is enabled and the chart is not creating a StorageClass." -}}
+{{- end -}}
+{{- if and (not .Values.serviceAccount.create) (empty .Values.serviceAccount.name) -}}
+{{- fail "serviceAccount.name must be set when serviceAccount.create=false." -}}
+{{- end -}}
+{{- if and .Values.mysql.enabled (not .Values.mysql.serviceAccount.create) (empty .Values.mysql.serviceAccount.name) -}}
+{{- fail "mysql.serviceAccount.name must be set when mysql.serviceAccount.create=false." -}}
+{{- end -}}

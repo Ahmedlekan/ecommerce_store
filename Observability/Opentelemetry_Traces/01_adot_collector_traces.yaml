@@ -113,10 +113,6 @@ spec:
           - k8s.deployment.name
           - http.method
           - http.status_code
-      
-      # Debug exporter for teaching (remove in production)
-      debug:
-        verbosity: detailed
     
     extensions:
       health_check:
@@ -136,4 +132,4 @@ spec:
             - batch                   # 4. Efficient batching
           exporters: 
             - awsxray
-            - debug                   # Remove this in production demos
+

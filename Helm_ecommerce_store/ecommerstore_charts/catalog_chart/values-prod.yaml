@@ -1,0 +1,24 @@
+# Production profile enables autoscaling and monitoring by default.
+environment:
+  name: prod
+
+replicaCount: 2
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+
+monitoring:
+  serviceMonitor:
+    enabled: true
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+mysql:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 50Gi

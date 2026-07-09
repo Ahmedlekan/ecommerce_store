@@ -51,10 +51,19 @@ spec:
     receivers:
       filelog:
         include:
-          - /var/log/pods/*/*/*.log
+        # Only collect logs from your application namespace
+          - /var/log/pods/micro-tier_*/*/*.log
+          # - /var/log/pods/*/*/*.log
         exclude:
-          - /var/log/pods/default_adot-*/*/*.log
+          # Exclude ADOT/OpenTelemetry collector logs to avoid recursive/noisy logging
+          - /var/log/pods/micro-tier_adot-*/*/*.log
+          - /var/log/pods/micro-tier_*/*/adot-collector/*.log
+          # Exclude system namespaces
           - /var/log/pods/kube-system_*/*/*.log
+          - /var/log/pods/default_*/*/*.log
+          
+          # - /var/log/pods/default_adot-*/*/*.log
+          # - /var/log/pods/kube-system_*/*/*.log
         start_at: end
     
     processors:

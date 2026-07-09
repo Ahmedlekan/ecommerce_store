@@ -14,3 +14,4 @@ resource "aws_eks_pod_identity_association" "externaldns" {
 output "externaldns_pod_identity_association_id" {
   value = aws_eks_pod_identity_association.externaldns.id
 }
+

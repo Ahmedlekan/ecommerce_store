@@ -1,0 +1,80 @@
+{{- if .Values.mysql.enabled }}
+# Optional in-cluster MySQL for the stateful catalog path.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "catalog.mysqlFullname" . }}
+  labels:
+    helm.sh/chart: {{ include "catalog.chart" . }}
+    {{- include "catalog.mysqlSelectorLabels" . | nindent 4 }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/part-of: ecommerce-store
+    app.kubernetes.io/environment: {{ .Values.environment.name | quote }}
+spec:
+  replicas: 1
+  serviceName: {{ include "catalog.mysqlFullname" . }}
+  selector:
+    matchLabels:
+      {{- include "catalog.mysqlSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "catalog.mysqlSelectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "catalog.mysqlServiceAccountName" . }}
+      containers:
+        - name: mysql
+          image: "{{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag }}"
+          imagePullPolicy: {{ .Values.mysql.image.pullPolicy }}
+          env:
+            # Root password is still managed as a regular env var for the MySQL bootstrap flow.
+            - name: MYSQL_ROOT_PASSWORD
+              value: {{ .Values.mysql.auth.rootPassword | quote }}
+            - name: MYSQL_DATABASE
+              value: {{ .Values.mysql.auth.database | quote }}
+          # Export the application DB user/password from the CSI mount before MySQL starts.
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              export MYSQL_USER="$(cat /mnt/secrets-store/{{ .Values.secretStore.keys.user }})";
+              export MYSQL_PASSWORD="$(cat /mnt/secrets-store/{{ .Values.secretStore.keys.password }})";
+              echo "Loaded catalog database credentials from AWS Secrets Manager. Starting MySQL.";
+              exec docker-entrypoint.sh mysqld
+          resources:
+            {{- toYaml .Values.mysql.resources | nindent 12 }}
+          volumeMounts:
+            - name: aws-secrets
+              mountPath: /mnt/secrets-store
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/mysql
+          ports:
+            - name: mysql
+              containerPort: 3306
+              protocol: TCP
+      volumes:
+        - name: aws-secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ include "catalog.secretProviderClassName" . }}
+        {{- if not .Values.mysql.persistence.enabled }}
+        # EmptyDir keeps the chart usable in disposable dev environments without a PVC.
+        - name: data
+          emptyDir: {}
+        {{- end }}
+  {{- if .Values.mysql.persistence.enabled }}
+  # Persistent volume claim for MySQL data so pod recreation does not wipe the database.
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          {{- toYaml .Values.mysql.persistence.accessModes | nindent 10 }}
+        resources:
+          requests:
+            storage: {{ .Values.mysql.persistence.size }}
+        storageClassName: {{ .Values.mysql.persistence.storageClassName | quote }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,13 @@
+{{- if and .Values.mysql.enabled .Values.mysql.persistence.enabled .Values.mysql.persistence.storageClass.create }}
+# Optional CSI-backed StorageClass so the chart can provision MySQL storage end-to-end.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ .Values.mysql.persistence.storageClass.name }}
+provisioner: ebs.csi.aws.com
+allowVolumeExpansion: {{ .Values.mysql.persistence.storageClass.allowVolumeExpansion }}
+reclaimPolicy: {{ .Values.mysql.persistence.storageClass.reclaimPolicy }}
+volumeBindingMode: {{ .Values.mysql.persistence.storageClass.volumeBindingMode }}
+parameters:
+  {{- toYaml .Values.mysql.persistence.storageClass.parameters | nindent 2 }}
+{{- end }}
