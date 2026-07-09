@@ -26,6 +26,7 @@ import { IShippingService } from './shipping';
 import { ICheckoutRepository } from './repositories';
 import { Item } from './models/Item';
 import { ShippingRates } from './models/ShippingRates';
+import { CheckoutMetricsService } from './metrics/CheckoutMetricsService';
 
 @Injectable()
 export class CheckoutService {
@@ -34,6 +35,7 @@ export class CheckoutService {
     private checkoutRepository: ICheckoutRepository,
     @Inject('OrdersService') private ordersService: IOrdersService,
     @Inject('ShippingService') private shippingService: IShippingService,
+    private checkoutMetricsService: CheckoutMetricsService,
   ) {}
 
   async get(customerId: string): Promise<Checkout> {
@@ -101,25 +103,39 @@ export class CheckoutService {
   }
 
   async submit(customerId: string): Promise<CheckoutSubmitted> {
-    const checkout = await this.get(customerId);
+    const endTimer = this.checkoutMetricsService.startSubmitTimer();
 
-    if (!checkout) {
-      throw new Error('Checkout not found');
+    this.checkoutMetricsService.recordRequest();
+
+    try {
+      const checkout = await this.get(customerId);
+
+      if (!checkout) {
+        throw new Error('Checkout not found');
+      }
+
+      const order = await this.ordersService.create(checkout);
+
+      await this.checkoutRepository.remove(customerId);
+
+      this.checkoutMetricsService.recordSuccess();
+      endTimer('success');
+
+      return Promise.resolve({
+        orderId: order.id,
+        email: checkout.shippingAddress.email,
+        items: checkout.items,
+        subtotal: checkout.subtotal,
+        shipping: checkout.shipping,
+        tax: checkout.tax,
+        total: checkout.total,
+      });
+    } catch (error) {
+      this.checkoutMetricsService.recordError(error);
+      endTimer('error');
+
+      throw error;
     }
-
-    const order = await this.ordersService.create(checkout);
-
-    await this.checkoutRepository.remove(customerId);
-
-    return Promise.resolve({
-      orderId: order.id,
-      email: checkout.shippingAddress.email,
-      items: checkout.items,
-      subtotal: checkout.subtotal,
-      shipping: checkout.shipping,
-      tax: checkout.tax,
-      total: checkout.total,
-    });
   }
 
   private makeid(length) {

@@ -27,6 +27,7 @@ import {
   RedisCheckoutRepository,
 } from './repositories';
 import { MockShippingService } from './shipping';
+import { CheckoutMetricsService } from './metrics/CheckoutMetricsService';
 
 const orderServiceProvider = {
   provide: 'OrdersService',
@@ -83,6 +84,7 @@ const repositoryProvider = {
     shippingServiceProvider,
     repositoryProvider,
     CheckoutService,
+    CheckoutMetricsService,
   ],
 })
 export class CheckoutModule {}

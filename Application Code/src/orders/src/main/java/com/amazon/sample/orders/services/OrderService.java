@@ -20,6 +20,7 @@ package com.amazon.sample.orders.services;
 
 import com.amazon.sample.orders.entities.OrderEntity;
 import com.amazon.sample.orders.messaging.OrdersEventHandler;
+import com.amazon.sample.orders.metrics.OrdersSreMetrics;
 import com.amazon.sample.orders.repositories.OrderRepository;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -41,13 +42,14 @@ public class OrderService extends AbstractRelationalEventListener<OrderEntity> {
   @Autowired
   private OrdersEventHandler eventHandler;
 
+  @Autowired
+  private OrdersSreMetrics ordersSreMetrics;
+
   @Transactional
   public OrderEntity create(OrderEntity order) {
     System.out.println(order);
 
-    OrderEntity entity = repository.save(order);
-
-    return entity;
+    return ordersSreMetrics.recordCreate(() -> repository.save(order));
   }
 
   public List<OrderEntity> list() {

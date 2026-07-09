@@ -20,9 +20,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aws-containers/retail-store-sample-app/catalog/api"
 	"github.com/aws-containers/retail-store-sample-app/catalog/httputil"
+	"github.com/aws-containers/retail-store-sample-app/catalog/metrics"
 	"github.com/aws-containers/retail-store-sample-app/catalog/model"
 	"github.com/gin-gonic/gin"
 )
@@ -55,6 +57,12 @@ func NewController(api *api.CatalogAPI) (*Controller, error) {
 // @Failure 500 {object} httputil.HTTPError
 // @Router /catalog/products [get]
 func (c *Controller) GetProducts(ctx *gin.Context) {
+	start := time.Now()
+	status := "success"
+	defer func() {
+		metrics.RecordRequest("get_products", http.MethodGet, start, status)
+	}()
+
 	var tags []string
 
 	tagString := ctx.Query("tags")
@@ -68,18 +76,23 @@ func (c *Controller) GetProducts(ctx *gin.Context) {
 
 	page, err := getQueryInt("page", 1, ctx)
 	if err != nil {
+		status = "error"
 		httputil.NewError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
 	size, err := getQueryInt("size", 10, ctx)
 	if err != nil {
+		status = "error"
 		httputil.NewError(ctx, http.StatusBadRequest, err)
 		return
 	}
 
+	metrics.RecordSearch(len(tags) > 0)
+
 	products, err := c.api.GetProducts(tags, order, page, size, ctx.Request.Context())
 	if err != nil {
+		status = "error"
 		httputil.NewError(ctx, http.StatusNotFound, err)
 		return
 	}
@@ -99,10 +112,17 @@ func (c *Controller) GetProducts(ctx *gin.Context) {
 // @Failure 500 {object} httputil.HTTPError
 // @Router /catalog/products/{id} [get]
 func (c *Controller) GetProduct(ctx *gin.Context) {
+	start := time.Now()
+	status := "success"
+	defer func() {
+		metrics.RecordRequest("get_product", http.MethodGet, start, status)
+	}()
+
 	id := ctx.Param("id")
 
 	product, err := c.api.GetProduct(id, ctx.Request.Context())
 	if err != nil {
+		status = "error"
 		httputil.NewError(ctx, http.StatusNotFound, err)
 		return
 	}
@@ -122,6 +142,12 @@ func (c *Controller) GetProduct(ctx *gin.Context) {
 // @Failure 500 {object} httputil.HTTPError
 // @Router /catalog/size [get]
 func (c *Controller) CatalogSize(ctx *gin.Context) {
+	start := time.Now()
+	status := "success"
+	defer func() {
+		metrics.RecordRequest("catalog_size", http.MethodGet, start, status)
+	}()
+
 	var tags []string
 
 	tagString := ctx.Query("tags")
@@ -133,6 +159,7 @@ func (c *Controller) CatalogSize(ctx *gin.Context) {
 
 	count, err := c.api.GetSize(tags, ctx.Request.Context())
 	if err != nil {
+		status = "error"
 		httputil.NewError(ctx, http.StatusNotFound, err)
 		return
 	}
@@ -153,8 +180,15 @@ func (c *Controller) CatalogSize(ctx *gin.Context) {
 // @Failure 500 {object} httputil.HTTPError
 // @Router /catalog/tags [get]
 func (c *Controller) ListTags(ctx *gin.Context) {
+	start := time.Now()
+	status := "success"
+	defer func() {
+		metrics.RecordRequest("list_tags", http.MethodGet, start, status)
+	}()
+
 	accounts, err := c.api.GetTags(ctx.Request.Context())
 	if err != nil {
+		status = "error"
 		httputil.NewError(ctx, http.StatusNotFound, err)
 		return
 	}

@@ -18,6 +18,7 @@
 
 package com.amazon.sample.carts.web;
 
+import com.amazon.sample.carts.metrics.CartSreMetrics;
 import com.amazon.sample.carts.services.CartService;
 import com.amazon.sample.carts.web.api.Cart;
 import com.amazon.sample.carts.web.api.Item;
@@ -49,6 +50,9 @@ public class CartsController {
   @Autowired
   private CartService service;
 
+  @Autowired
+  private CartSreMetrics cartSreMetrics;
+
   @ResponseStatus(HttpStatus.OK)
   @GetMapping(
     value = "/{customerId}",
@@ -56,7 +60,9 @@ public class CartsController {
   )
   @Operation(summary = "Retrieve a cart", operationId = "getCart")
   public Cart get(@PathVariable String customerId) {
-    return Cart.from(this.service.get(customerId));
+    return cartSreMetrics.recordRequest("get_cart", "GET", () ->
+      Cart.from(this.service.get(customerId))
+    );
   }
 
   @ResponseStatus(HttpStatus.ACCEPTED)
@@ -66,9 +72,11 @@ public class CartsController {
   )
   @Operation(summary = "Delete a cart", operationId = "deleteCart")
   public Cart delete(@PathVariable String customerId) {
-    this.service.delete(customerId);
+    return cartSreMetrics.recordRequest("delete_cart", "DELETE", () -> {
+      this.service.delete(customerId);
 
-    return new Cart();
+      return new Cart();
+    });
   }
 
   @ResponseStatus(HttpStatus.ACCEPTED)
@@ -81,7 +89,9 @@ public class CartsController {
     @PathVariable String customerId,
     @RequestParam(value = "sessionId") String sessionId
   ) {
-    this.service.merge(sessionId, customerId);
+    cartSreMetrics.recordRequest("merge_carts", "GET", () ->
+      this.service.merge(sessionId, customerId)
+    );
   }
 
   @ResponseStatus(HttpStatus.OK)
@@ -94,7 +104,9 @@ public class CartsController {
     @PathVariable String customerId,
     @PathVariable String itemId
   ) {
-    return this.service.item(customerId, itemId).map(Item::from).get();
+    return cartSreMetrics.recordRequest("get_item", "GET", () ->
+      this.service.item(customerId, itemId).map(Item::from).get()
+    );
   }
 
   @ResponseStatus(HttpStatus.OK)
@@ -104,10 +116,12 @@ public class CartsController {
   )
   @Operation(summary = "Retrieve items from a cart", operationId = "getItems")
   public List<Item> getItems(@PathVariable String customerId) {
-    return this.service.items(customerId)
-      .stream()
-      .map(Item::from)
-      .collect(Collectors.toList());
+    return cartSreMetrics.recordRequest("get_items", "GET", () ->
+      this.service.items(customerId)
+        .stream()
+        .map(Item::from)
+        .collect(Collectors.toList())
+    );
   }
 
   @ResponseStatus(HttpStatus.CREATED)
@@ -120,14 +134,20 @@ public class CartsController {
     @PathVariable String customerId,
     @RequestBody Item item
   ) {
-    return Item.from(
-      this.service.add(
-          customerId,
-          item.getItemId(),
-          item.getQuantity(),
-          item.getUnitPrice()
-        )
-    );
+    return cartSreMetrics.recordRequest("add_item", "POST", () -> {
+      Item added = Item.from(
+        this.service.add(
+            customerId,
+            item.getItemId(),
+            item.getQuantity(),
+            item.getUnitPrice()
+          )
+      );
+
+      cartSreMetrics.recordItemsAdded(item.getQuantity());
+
+      return added;
+    });
   }
 
   @ResponseStatus(HttpStatus.ACCEPTED)
@@ -140,7 +160,10 @@ public class CartsController {
     @PathVariable String customerId,
     @PathVariable String itemId
   ) {
-    this.service.deleteItem(customerId, itemId);
+    cartSreMetrics.recordRequest("remove_item", "DELETE", () -> {
+      this.service.deleteItem(customerId, itemId);
+      cartSreMetrics.recordItemRemoved();
+    });
   }
 
   @ResponseStatus(HttpStatus.ACCEPTED)
@@ -153,11 +176,13 @@ public class CartsController {
     @PathVariable String customerId,
     @RequestBody Item item
   ) {
-    this.service.update(
-        customerId,
-        item.getItemId(),
-        item.getQuantity(),
-        item.getUnitPrice()
-      );
+    cartSreMetrics.recordRequest("update_item", "PATCH", () ->
+      this.service.update(
+          customerId,
+          item.getItemId(),
+          item.getQuantity(),
+          item.getUnitPrice()
+        )
+    );
   }
 }
