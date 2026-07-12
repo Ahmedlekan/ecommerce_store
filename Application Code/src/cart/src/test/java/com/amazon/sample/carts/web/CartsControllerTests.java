@@ -25,6 +25,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.amazon.sample.carts.chaos.ChaosFilter;
+import com.amazon.sample.carts.metrics.CartSreMetrics;
 import com.amazon.sample.carts.repositories.CartEntity;
 import com.amazon.sample.carts.repositories.ItemEntity;
 import com.amazon.sample.carts.services.CartService;
@@ -32,6 +33,7 @@ import com.amazon.sample.carts.util.TestUtil;
 import com.amazon.sample.carts.web.api.Item;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,6 +59,9 @@ public class CartsControllerTests {
 
   @MockitoBean
   private CartService service;
+
+  @MockitoBean
+  private CartSreMetrics cartSreMetrics;
 
   private static final String EMPTY_CART_ID = "123";
   private static final String POPULATED_CART_ID = "456";
@@ -87,6 +92,15 @@ public class CartsControllerTests {
     given(this.service.add("123", "1", 1, 150)).willReturn(item);
 
     doNothing().when(this.service).deleteItem(POPULATED_CART_ID, "1");
+
+    when(this.cartSreMetrics.recordRequest(anyString(), anyString(), any(Supplier.class)))
+      .thenAnswer(invocation -> invocation.<Supplier<?>>getArgument(2).get());
+    doAnswer(invocation -> {
+      invocation.<Runnable>getArgument(2).run();
+      return null;
+    })
+      .when(this.cartSreMetrics)
+      .recordRequest(anyString(), anyString(), any(Runnable.class));
   }
 
   @Test
