@@ -1,0 +1,142 @@
+openapi: 3.0.3
+info:
+  title: Prometheus Evidence Action Group
+  version: 1.0.0
+  description: >
+    Read-only Bedrock Agent action group for retrieving bounded infrastructure
+    metric evidence from Amazon Managed Service for Prometheus. The action
+    returns structured evidence only; the Bedrock Agent interprets the evidence.
+paths:
+  /metrics/evidence:
+    post:
+      operationId: getPrometheusMetricEvidence
+      summary: Retrieve Prometheus infrastructure metric evidence from AMP
+      description: >
+        Returns summarized time-series evidence for one allowed infrastructure
+        metric key. Arbitrary PromQL and service filtering are intentionally not
+        supported in version 1.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MetricEvidenceRequest"
+      responses:
+        "200":
+          description: Metric evidence response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetricEvidenceResponse"
+components:
+  schemas:
+    MetricEvidenceRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - metric_name
+      properties:
+        metric_name:
+          type: string
+          enum:
+            - pod_cpu_utilization
+            - pod_memory_utilization
+            - pod_restarts
+            - deployment_replicas_available
+            - deployment_replicas_unavailable
+          description: Fixed metric key. Raw PromQL is not accepted.
+        namespace:
+          type: string
+          default: micro-tier
+          enum:
+            - micro-tier
+          description: Kubernetes namespace. Version 1 is scoped to micro-tier.
+        hours_back:
+          type: integer
+          minimum: 1
+          maximum: 24
+          default: 1
+          description: Bounded lookback window in hours.
+        max_series:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+          description: Maximum number of returned time series.
+    MetricEvidenceResponse:
+      type: object
+      required:
+        - status
+        - source
+        - observed_at
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - error
+        source:
+          type: string
+          enum:
+            - amp
+        metric:
+          type: string
+        namespace:
+          type: string
+        window:
+          type: string
+        observed_at:
+          type: string
+          format: date-time
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetricSeriesSummary"
+        metadata:
+          $ref: "#/components/schemas/MetricEvidenceMetadata"
+        error:
+          $ref: "#/components/schemas/MetricEvidenceError"
+    MetricSeriesSummary:
+      type: object
+      required:
+        - resource
+        - current
+        - average
+        - maximum
+        - unit
+        - observed_at
+      properties:
+        resource:
+          type: string
+        current:
+          type: number
+        average:
+          type: number
+        maximum:
+          type: number
+        unit:
+          type: string
+        observed_at:
+          type: string
+          format: date-time
+    MetricEvidenceMetadata:
+      type: object
+      properties:
+        series_count:
+          type: integer
+        truncated:
+          type: boolean
+        query_mode:
+          type: string
+          enum:
+            - range
+    MetricEvidenceError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
