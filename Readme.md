@@ -16,23 +16,23 @@ It also includes production-focused capabilities such as secure secret managemen
 - [4. Repository Structure](#4-repository-structure)
 - [5. Prerequisites](#5-prerequisites)
 - [6. Local Development Setup](#6-local-development-setup)
-- [08. Instrumentation](#08-instrumentation)
-- [09. Terraform For StatefulSet Deployment](#09-infrastructure-provisioning-with-terraform-for-statefulset-deployment)
-- [10. Secrets Management](#10-secrets-management)
-- [11. Kubernetes StatefulSet Deployment](#11-kubernetes-deployment-using-statefulset_k8manifest)
-- [12. Terraform For AWS Dataplane](#12-infrastructure-provisioning-with-terraform-for-aws-infrastructure-deployment)
-- [13. AWS Dataplane Manifests](#13-deploy-aws-dataplane-manifests)
-- [14. Helm](#14-helm)
-- [15. Karpenter Installation](#15-karpenter-installation)
-- [16. Karpenter On-Demand Testing](#16-karpenter-on-demand-instances---autoscaling---testing)
-- [17. Karpenter Spot Testing](#17-karpenter-spot-instances---autoscaling---testing)
-- [18. Karpenter Spot Interruption Handling](#18-karpenter-spot-interruption-handling)
-- [19. Horizontal Pod Autoscaler](#19-horizontal-pod-autoscaler)
-- [20. Install & Configure ArgoCD](#20-install--configure-argocd)
-- [21. GitHub Actions To AWS ECR](#21-ci---github-action-to-aws-ecr)
-- [22. Build And Push Docker Images To AWS ECR](#22-build-and-push-docker-images-to-aws-ecr)
-- [23. Continuous Delivery / Deployment](#23-continuous-delivery--deployment)
-- [24. Observability](#24-observability)
+- [7. Instrumentation](#7-instrumentation)
+- [8. Terraform For StatefulSet Deployment](#8-infrastructure-provisioning-with-terraform-for-statefulset-deployment)
+- [9. Secrets Management](#9-secrets-management)
+- [10. Kubernetes StatefulSet Deployment](#10-kubernetes-deployment-using-statefulset_k8manifest)
+- [11. Terraform For AWS Dataplane](#11-infrastructure-provisioning-with-terraform-for-aws-infrastructure-deployment)
+- [12. AWS Dataplane Manifests](#12-deploy-aws-dataplane-manifests)
+- [13. Helm](#13-helm)
+- [14. Karpenter Installation](#14-karpenter-installation)
+- [15. Karpenter On-Demand Testing](#15-karpenter-on-demand-instances---autoscaling---testing)
+- [16. Karpenter Spot Testing](#16-karpenter-spot-instances---autoscaling---testing)
+- [17. Karpenter Spot Interruption Handling](#17-karpenter-spot-interruption-handling)
+- [18. Horizontal Pod Autoscaler](#18-horizontal-pod-autoscaler)
+- [19. Install & Configure ArgoCD](#19-install--configure-argocd)
+- [20. GitHub Actions To AWS ECR](#20-ci---github-action-to-aws-ecr)
+- [21. Build And Push Docker Images To AWS ECR](#21-build-and-push-docker-images-to-aws-ecr)
+- [22. Continuous Delivery / Deployment](#22-continuous-delivery--deployment)
+- [23. Observability](#23-observability)
 
 ## 1. Project Overview
 
@@ -145,10 +145,15 @@ ecommerce_store/
 |       |-- ui/
 |
 |-- Terraform/
-|   |-- dev/
-|       |-- EKS/
-|       |-- VPC/
-|       |-- Dataplane/
+|   |-- shared/
+|   |   |-- backend/
+|   |   |-- vpc/
+|   |
+|   |-- eks-statefulset_and_addons/
+|   |
+|   |-- eks-aws-dataplane/
+|       |-- cluster-and-addons/
+|       |-- app-dataplane/
 |
 |-- Kubernetes_manifest/
 |   |-- catalog/
@@ -160,11 +165,28 @@ ecommerce_store/
 |   |-- verification-pods/
 |
 |-- Helm_ecommerce_store/
-|   |-- charts/
-|   |-- values.yaml
-|   |-- values-dev.yaml
-|   |-- values-staging.yaml
-|   |-- values-prod.yaml
+|   |-- ecommercestore_apps/
+|   |   |-- values-cart.yaml
+|   |   |-- values-catalog.yaml
+|   |   |-- values-checkout.yaml
+|   |   |-- values-orders.yaml
+|   |   |-- values-ui.yaml
+|   |
+|   |-- ecommerstore_charts/
+|       |-- catalog_chart/
+|       |-- ui_chart/
+|
+|-- Observability/
+|   |-- OpenTelemetry_terraform/
+|   |-- OpenTelemetry_AMP_AMG/
+|   |-- OpenTelemetry_logs/
+|   |-- Opentelemetry_Traces/
+|   |-- Grafana_dashboards/
+|
+|-- AIOPS/
+|   |-- Schemas/
+|   |-- Terraform/
+|   |-- bedrock-agent/
 |
 |-- .github/
 |   |-- workflows/
@@ -190,6 +212,8 @@ ecommerce_store/
 | Terraform/ | Contains Infrastructure as Code used to provision AWS resources such as VPC, EKS, IAM roles, add-ons, databases, queues, and other supporting services. |
 | Kubernetes_manifest/ | Contains raw Kubernetes manifests for deploying workloads, services, ingress, service accounts, secrets integration, and verification pods. |
 | Helm_ecommerce_store/ | Contains Helm charts and values files used to package and deploy the application in a reusable and environment-specific way. |
+| Observability/ | Contains OpenTelemetry, ADOT, AMP, AMG, log, trace, and Grafana dashboard configuration. |
+| AIOPS/ | Contains experimental/future AIOps contracts, Terraform, and Bedrock-related evidence collection components. |
 | .github/workflows/ | Contains GitHub Actions workflows for CI checks, Docker image builds, Amazon ECR publishing, and future deployment automation. |
 | docs/ | Stores supporting documentation, diagrams, notes, and additional project references. |
 | Readme.md | Main project documentation and operational guide. |
@@ -340,7 +364,7 @@ Make sure the following tools are installed locally:
 
 This project includes Docker Compose files for running services locally:
 
-```bash
+```text
   Application Code/src/docker-compose.yaml
   Application Code/src/app/docker-compose.yml
   Application Code/src/app/compose.override.yaml
@@ -448,7 +472,7 @@ Docker Compose can build the service images locally:
 Using Docker Compose makes the local workflow closer to production because every service runs as a container, similar to how the application later runs on Kubernetes.
 
 
-## 08. Instrumentation
+## 7. Instrumentation
 
 This project instruments each microservice so application behavior can be observed through traces, metrics, and logs.
 
@@ -626,7 +650,7 @@ Pod-level troubleshooting
 ```
 
 
-## 09. Infrastructure Provisioning With Terraform For StatefulSet Deployment
+## 8. Infrastructure Provisioning With Terraform For StatefulSet Deployment
 
 This project uses Terraform to provision the AWS infrastructure required to run the StatefulSet-based Kubernetes deployment on Amazon EKS.
 
@@ -646,7 +670,7 @@ Terraform is responsible for:
 
 ### Terraform Directory Layout
 
-```bash
+```text
 Terraform/
   shared/
     backend/
@@ -665,42 +689,41 @@ Terraform/
         outputs.tf
         variables.tf
 
-  eks-statefulset/
-    cluster-and-addons/
-      c1_versions.tf
-      c2_variables.tf
-      c3_remote-state.tf
-      c4_datasources_and_locals.tf
-      c5_eks_tags.tf
-      c6_eks_cluster_iamrole.tf
-      c7_eks_cluster.tf
-      c8_eks_nodegroup_iamrole.tf
-      c9_eks_nodegroup_private.tf
-      c10_eks_outputs.tf
+  eks-statefulset_and_addons/
+    c1_versions.tf
+    c2_variables.tf
+    c3_remote-state.tf
+    c4_datasources_and_locals.tf
+    c5_eks_tags.tf
+    c6_eks_cluster_iamrole.tf
+    c7_eks_cluster.tf
+    c8_eks_nodegroup_iamrole.tf
+    c9_eks_nodegroup_private.tf
+    c10_eks_outputs.tf
 
-      c11-podidentityagent-eksaddon.tf
-      c12-helm-and-kubernetes-providers.tf
-      c13-podidentity-assumerole.tf
+    c11-podidentityagent-eksaddon.tf
+    c12-helm-and-kubernetes-providers.tf
+    c13-podidentity-assumerole.tf
 
-      c14-01-lbc-iam-policy-datasources.tf
-      c14-02-lbc-iam-policy-and-role.tf
-      c14-03-lbc-eks-pod-identity-association.tf
-      c14-04-lbc-helm-install.tf
+    c14-01-lbc-iam-policy-datasources.tf
+    c14-02-lbc-iam-policy-and-role.tf
+    c14-03-lbc-eks-pod-identity-association.tf
+    c14-04-lbc-helm-install.tf
 
-      c15-01-ebscsi-iam-policy-and-role.tf
-      c15-02-ebscsi-eks-pod-identity-association.tf
-      c15-03-ebscsi-eksaddon.tf
+    c15-01-ebscsi-iam-policy-and-role.tf
+    c15-02-ebscsi-eks-pod-identity-association.tf
+    c15-03-ebscsi-eksaddon.tf
 
-      c16-01-secretstorecsi-helm-install.tf
-      c16-02-secretstorecsi-ascp-helm-install.tf
-      c16-03-catalog-db-secret-pod-identity.tf
-      c16-04-orders-db-secret-pod-identity.tf
+    c16-01-secretstorecsi-helm-install.tf
+    c16-02-secretstorecsi-ascp-helm-install.tf
+    c16-03-catalog-db-secret-pod-identity.tf
+    c16-04-orders-db-secret-pod-identity.tf
 
-      terraform.tfvars
-      env/
-        dev.tfvars
-        staging.tfvars
-        prod.tfvars
+    terraform.tfvars
+    env/
+      dev.tfvars
+      staging.tfvars
+      prod.tfvars
 ```
 
 ### What Terraform Provisions For StatefulSet Deployment
@@ -729,10 +752,10 @@ Those belong to the AWS dataplane deployment path, not the StatefulSet deploymen
 
 Terraform should be applied in this order:
 
-```bash
+```text
 1. Terraform/shared/backend
 2. Terraform/shared/vpc/terraform-manifests
-3. Terraform/eks-statefulset/cluster-and-addons
+3. Terraform/eks-statefulset_and_addons
 4. Kubernetes_manifest/00_namespace_micro-tier.yaml
 5. Kubernetes_manifest/statefulset_k8manifest/
 ```
@@ -779,7 +802,7 @@ The EKS StatefulSet Terraform root reads these outputs through Terraform remote 
 After the VPC is available, create the EKS cluster and required add-ons:
 
 ```bash
-cd Terraform/eks-statefulset/cluster-and-addons
+cd Terraform/eks-statefulset_and_addons
 
 terraform init
 terraform validate
@@ -866,13 +889,13 @@ The StatefulSet deployment uses AWS Secrets Manager for credentials that should 
 
 Common secrets:
 
-```bash
+```text
 dev-catalog-db-secret
 dev-orders-db-secret
 dev-orders-rabbitmq-secret
 ```
 
-## 10. Secrets Management
+## 9. Secrets Management
 
 This project manages application secrets with AWS Secrets Manager and exposes them to Kubernetes workloads through the Secrets Store CSI Driver. This keeps sensitive values out of source code, Docker images, and plain Kubernetes manifests.
 
@@ -908,7 +931,7 @@ AWS Secrets Manager is the source of truth for sensitive values such as database
 
 Example secrets:
 
-```bash
+```text
 dev-catalog-db-secret
 # staging-catalog-db-secret
 # prod-catalog-db-secret
@@ -928,7 +951,7 @@ For this project, the secret name is:
 
 ***For the catalog-db***
 
-```bash
+```text
 dev-catalog-db-secret
 ```
 
@@ -1064,8 +1087,7 @@ The `SecretProviderClass` tells the Secrets Store CSI Driver:
 
 Example:
 
-```bash
-yaml
+```yaml
 apiVersion: secrets-store.csi.x-k8s.io/v1
 kind: SecretProviderClass
 metadata:
@@ -1103,14 +1125,14 @@ The Secrets Store CSI Driver allows Kubernetes pods to mount secrets from AWS Se
 
 Example mounted catalog files:
 
-```bash
+```text
 /mnt/secrets-store/MYSQL_USER
 /mnt/secrets-store/MYSQL_PASSWORD
 ```
 
 Example mounted orders files:
 
-```bash
+```text
 /mnt/secrets-store/RETAIL_ORDERS_PERSISTENCE_USERNAME
 /mnt/secrets-store/RETAIL_ORDERS_PERSISTENCE_PASSWORD
 ```
@@ -1141,20 +1163,20 @@ Each service should only have permission to read the secret it needs.
 
 Required IAM actions:
 
-```bash
+```text
 secretsmanager:GetSecretValue
 secretsmanager:DescribeSecret
 ```
 
 Catalog should only access:
 
-```bash
+```text
 dev-catalog-db-secret
 ```
 
 Orders should only access:
 
-```bash
+```text
 orders-db-secret
 ```
 
@@ -1181,7 +1203,7 @@ The workload must reference the correct SecretProviderClass as a CSI volume.
 
 Example:
 
-```bash
+```yaml
 volumes:
   - name: aws-secrets
     csi:
@@ -1200,11 +1222,11 @@ volumeMounts:
 
 The application can then read the secret values from files inside:
 
-```bash
+```text
 /mnt/secrets-store
 ```
 
-## 11. Kubernetes Deployment using statefulset_k8manifest
+## 10. Kubernetes Deployment using statefulset_k8manifest
 
 This project deploys the microservices application to Amazon EKS using Kubernetes manifests. The Kubernetes layer defines how each service runs, how services communicate, how configuration is injected, how secrets are mounted, and how external traffic reaches the application.
 
@@ -1276,7 +1298,7 @@ kubectl describe pod <catalog-mysql-pod-name>
 
 Look for the CSI volume:
 
-```bash
+```text
 secrets-store.csi.k8s.io
 catalog-db-secrets
 ```
@@ -1289,7 +1311,7 @@ kubectl exec -it <catalog-mysql-pod-name> -- ls /mnt/secrets-store
 
 Expected files:
 
-```bash
+```text
 MYSQL_USER
 MYSQL_PASSWORD
 ```
@@ -1316,7 +1338,7 @@ kubectl run mysql-client --rm -it \
 
 ### Run SQL Commands
 
-```bash
+```sql
 SHOW DATABASES;
 USE catalogdb;
 SHOW TABLES;
@@ -1334,7 +1356,7 @@ kubectl run postgres-client --rm -it \
   --restart=Never \
   -- env PGPASSWORD='Password' psql -h orders-postgresql -U username -d orders
 ```
-```bash
+```sql
 # Show tables
 \dt
 \d orders
@@ -1344,7 +1366,7 @@ kubectl run postgres-client --rm -it \
 Access the application through the ingress URL.
 
 
-## 12. Infrastructure Provisioning With Terraform For AWS Infrastructure Deployment
+## 11. Infrastructure Provisioning With Terraform For AWS Infrastructure Deployment
 
 This project uses Terraform to provision the AWS infrastructure required to run the microservices platform on Amazon EKS with AWS-managed backend services.
 
@@ -1365,7 +1387,7 @@ This deployment mode is different from the StatefulSet deployment mode. In the S
 
 ### Terraform Directory Layout
 
-```bash
+```text
 Terraform/
 shared/
   backend/
@@ -1410,7 +1432,7 @@ eks-aws-dataplane/
 
 The AWS infrastructure deployment should be applied in this order:
 
-```bash
+```text
 1. Terraform/shared/backend
 2. Terraform/shared/vpc/terraform-manifests
 3. Terraform/eks-aws-dataplane/cluster-and-addons
@@ -1538,7 +1560,7 @@ kubectl apply -f Kubernetes_manifest/00_namespace_micro-tier.yaml
 kubectl get namespace micro-tier
 ```
 
-## 13. Deploy AWS Dataplane Manifests
+## 12. Deploy AWS Dataplane Manifests
 
 ```bash
 kubectl apply -f Kubernetes_manifest/aws_dataplane_k8manifest/ -n micro-tier
@@ -1589,7 +1611,7 @@ kubectl describe pod <pod-name> -n micro-tier
 
 Look for:
 
-```bash
+```text
 secrets-store.csi.k8s.io
 ```
 
@@ -1599,7 +1621,7 @@ Check mounted files:
 kubectl exec -it <pod-name> -n micro-tier -- ls /mnt/secrets-store
 ```
 
-```bash
+```text
 # Expected catalog files:
 
 MYSQL_USER
@@ -1642,7 +1664,7 @@ mysql -h "${MYSQL_ENDPOINT%%:*}" \
 
 Verify schema:
 
-```bash
+```sql
 SHOW TABLES;
 SELECT * FROM products LIMIT 10;
 EXIT;
@@ -1704,7 +1726,7 @@ redis-cli -h $REDIS_HOST -p $REDIS_PORT PING
 
 Expected response:
 
-```bash
+```text
 PONG
 ```
 
@@ -1807,7 +1829,7 @@ kubectl get configmap -n micro-tier
 ```
 
 
-## 14. Helm
+## 13. Helm
 
   - Chart structure
   - Values files
@@ -1816,7 +1838,9 @@ kubectl get configmap -n micro-tier
   - Rollback commands
 
 
-## 15. Karpenter Installation
+## 14. Karpenter Installation
+
+<img width="1644" height="957" alt="Image" src="https://github.com/user-attachments/assets/dcebbe99-feb3-4bd0-b4eb-3b09685c9488" />
 
 This section explains how to install and configure Karpenter on Amazon EKS.
 
@@ -1921,7 +1945,7 @@ The main resources are:
 |   |-- c6_08_karpenter_eventbridge_rules.tf
 |   |-- terraform.tfvars
 |
-|-- Karpenter/KARPENTER_k8-manifests/
+|-- Karpenter/KAPERNTER_k8_manifests/
 |   |-- 01_ec2nodeclass.yaml
 |   |-- 02_nodepool_ondemand.yaml
 |   |-- 03_nodepool_spot.yaml
@@ -2073,7 +2097,7 @@ If multiple Karpenter replicas are running, only one pod becomes the active lead
 After the controller is running, apply the Karpenter Kubernetes resources.
 
 ```bash
-cd ../04_KARPENTER_k8s-manifests
+cd ../KAPERNTER_k8_manifests
 
 kubectl apply -f 01_ec2nodeclass.yaml
 kubectl apply -f 02_nodepool_ondemand.yaml
@@ -2385,7 +2409,7 @@ cd 03_KARPENTER_terraform-manifests
 
 Update the Helm chart version in:
 
-```bash
+```text
 c6_06_karpenter_helm_install.tf
 ```
 
@@ -2412,12 +2436,12 @@ NodePools and EC2NodeClass resources are not usually replaced by a Helm upgrade,
 To update the On-Demand or Spot NodePool:
 
 ```bash
-cd 04_KARPENTER_k8s-manifests
+cd KAPERNTER_k8_manifests
 ```
 
 Edit the required file:
 
-```bash
+```text
 02_nodepool_ondemand.yaml
 03_nodepool_spot.yaml
 ```
@@ -2485,7 +2509,7 @@ terraform destroy
 ```
 
 
-## 16. Karpenter On-Demand Instances - Autoscaling - Testing
+## 15. Karpenter On-Demand Instances - Autoscaling - Testing
 
 In this section, we will demonstrate Karpenter's autoscaling capabilities using on-demand instances.
 
@@ -2522,7 +2546,7 @@ Karpenter
 
 ***Manifest Overview***
 
-```bash
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -2898,7 +2922,7 @@ What We Demonstrated
 - Terminates unnecessary nodes to save costs
 
 
-## 17. Karpenter Spot Instances - Autoscaling - Testing
+## 16. Karpenter Spot Instances - Autoscaling - Testing
 
 In this section, we will demonstrate Karpenter with Spot instances - AWS EC2 instances available at up to 90% discount compared to On-Demand pricing.
 
@@ -2969,7 +2993,7 @@ What are Spot Instances?
 
 Before deploying our test application, let's review the Spot NodePool we created earlier:
 
-```bash
+```yaml
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
@@ -3045,7 +3069,7 @@ Why Multiple Instance Types? Spot capacity varies by instance type and availabil
 
 ***Manifest Overviee***
 
-```bash
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -3342,11 +3366,11 @@ ip-10-0-12-232.ec2.internal   Ready    <none>   55m   v1.34.1-eks-c39b1d0
 *** Instance Diversity***
 
 ***On-Demand NodePool:***
-```bash
+```yaml
 instance-family: ["t3", "t3a"]  # Limited variety
 ```
 ***Spot NodePool:***
-```bash
+```yaml
 instance-family: ["t3", "t3a", "t2", "c5a", "c6a"]  # Wide variety!
 ```
 
@@ -3371,14 +3395,14 @@ instance-family: ["t3", "t3a", "t2", "c5a", "c6a"]  # Wide variety!
 
 1. Always Use Multiple Replicas
 
-```bash
+```yaml
 spec:
 replicas: 3  # Minimum - survives 1-2 interruptions
 ```
 
 2. Use Pod Disruption Budgets
 
-```bash
+```yaml
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -3392,7 +3416,7 @@ selector:
 
 3. Use Diverse Instance Types
 
-```bash
+```yaml
 # Good - wide variety
 instance-family: ["t3", "t3a", "t2", "c5a", "c6a"]
 
@@ -3402,7 +3426,7 @@ instance-family: ["t3"]  # May struggle to find capacity
 
 4. Implement Health Checks
 
-```bash
+```yaml
 livenessProbe:
 httpGet:
   path: /health
@@ -3415,7 +3439,7 @@ httpGet:
 
 5. Handle Graceful Shutdown
 
-```bash
+```yaml
 lifecycle:
 preStop:
   exec:
@@ -3480,7 +3504,7 @@ kubectl get deploy karpenter-autoscale-demo-spot -o yaml | grep -A2 nodeSelector
 
 Solution: Expand instance type diversity in your Spot NodePool:
 
-```bash
+```yaml
 requirements:
 - key: karpenter.k8s.aws/instance-family
   operator: In
@@ -3492,7 +3516,9 @@ requirements:
 ```
 
 
-## 18. Karpenter Spot Interruption Handling
+## 17. Karpenter Spot Interruption Handling
+
+<img width="1672" height="941" alt="Image" src="https://github.com/user-attachments/assets/36a1fd19-e407-4935-a7c4-706b16995f87" />
 
 This section explains how Karpenter handles Spot Instance interruptions in an Amazon EKS cluster.
 
@@ -3645,7 +3671,7 @@ The Helm configuration should include the interruption queue name.
 
 Example:
 
-```bash
+```text
 settings.interruptionQueue = <karpenter-interruption-queue-name>
 ```
 
@@ -3653,7 +3679,7 @@ settings.interruptionQueue = <karpenter-interruption-queue-name>
 
 The Flow:
 
-```bash
+```text
 1. AWS sends interruption warning → EventBridge → SQS Queue
 2. Karpenter polls SQS (every 10 seconds), detects message
 3. Karpenter cordons node (stops new pod scheduling)
@@ -3715,7 +3741,7 @@ We'll deploy a simple app with 5 replicas and a PodDisruptionBudget to ensure av
 
 Key configuration in ***Spot_Interruption_Handling.yaml:***
 
-```bash
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -4039,7 +4065,7 @@ Timeline summary:
 
 ***The PodDisruptionBudget (PDB) - The Hero***
 
-```bash
+```yaml
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 spec:
@@ -4050,7 +4076,7 @@ What PDB does:
 
 Without PDB:
 
-```bash
+```text
 T+20s: Karpenter drains node
      → All 5 pods evicted immediately
      → 0/5 pods running ← SERVICE DOWN! ❌
@@ -4060,7 +4086,7 @@ T+60s: New node ready, pods rescheduled
 
 With PDB (minAvailable: 3):
 
-```bash
+```text
 T+20s: Karpenter drains node
      → PDB blocks: "You can only evict 2 pods, must keep 3 running!"
      → 2 pods evicted, 3 stay running ← SERVICE UP! -
@@ -4073,7 +4099,7 @@ T+60s: PDB allows evicting remaining 3 pods (replacements ready)
 
 The formula:
 
-```bash
+```text
 Karpenter + PodDisruptionBudget + Proactive Provisioning = Zero Downtime
 ```
 
@@ -4159,7 +4185,7 @@ For custom applications, ensure your code handles termination signals properly.
 
 Best practice for production:
 
-```bash
+```yaml
 # 60% on Spot (cost savings)
 apiVersion: apps/v1
 kind: Deployment
@@ -4196,7 +4222,7 @@ Result:
 
 5. Use Diverse Instance Types
 
-```bash
+```yaml
 # In your Spot NodePool
 requirements:
 - key: karpenter.k8s.aws/instance-family
@@ -4206,7 +4232,7 @@ requirements:
 Why: If t3 Spot is unavailable, Karpenter tries t3a, then t2, etc. Increases replacement node availability.
 
 
-## 19. Horizontal Pod Autoscaler
+## 18. Horizontal Pod Autoscaler
 
 This section explains how Horizontal Pod Autoscaler is configured for the microservices application.
 
@@ -4286,7 +4312,7 @@ In this project, Metrics Server is installed as an EKS add-on using Terraform.
 
 Terraform files:
 
-```bash
+```text
 Terraform/eks-statefulset_and_addons/c18_eksaddon_metrics_server.tf
 Terraform/eks-aws-dataplane/cluster-and-addons/c16_eksaddon_metrics_server.tf
 ```
@@ -4311,13 +4337,13 @@ If kubectl top does not work, HPA will not be able to calculate CPU or memory ut
 
 The HPA manifests are stored in a shared folder so both deployment paths can use them:
 
-```bash
+```text
 Kubernetes_manifest/HPA/
 ```
 
 Files:
 
-```bash
+```text
 Kubernetes_manifest/HPA/01_catalog_hpa.yaml
 Kubernetes_manifest/HPA/02_carts_hpa.yaml
 Kubernetes_manifest/HPA/03_checkout_hpa.yaml
@@ -4348,7 +4374,7 @@ Each HPA uses the same production baseline:
 
 Example:
 
-```bash
+```yaml
 minReplicas: 3
 maxReplicas: 12
 metrics:
@@ -4372,7 +4398,7 @@ Each HPA points to a Deployment using scaleTargetRef.
 
 Example for catalog:
 
-```bash
+```yaml
 scaleTargetRef:
 apiVersion: apps/v1
 kind: Deployment
@@ -4387,7 +4413,7 @@ This project also configures explicit scale-up and scale-down behavior.
 
 ### Scale Up
 
-```bash
+```yaml
 scaleUp:
 stabilizationWindowSeconds: 0
 policies:
@@ -4414,7 +4440,7 @@ whichever allows the larger increase.
 
 ### Scale Down
 
-```bash
+```yaml
 scaleDown:
 stabilizationWindowSeconds: 300
 policies:
@@ -4445,13 +4471,13 @@ This is safer for production workloads.
 
 The application Deployments are configured with three replicas:
 
-```bash
+```yaml
 replicas: 3
 ```
 
 The HPA also has:
 
-```bash
+```yaml
 minReplicas: 3
 ```
 
@@ -4459,7 +4485,7 @@ Once HPA is applied, HPA becomes responsible for managing the Deployment replica
 
 The Deployment should still define a baseline replica count, but HPA will continuously reconcile the number of replicas between:
 
-```bash
+```yaml
 minReplicas: 3
 maxReplicas: 12
 ```
@@ -4468,13 +4494,13 @@ maxReplicas: 12
 
 This project also uses PodDisruptionBudgets with:
 
-```bash
+```yaml
 minAvailable: 2
 ```
 
 The production baseline is:
 
-```bash
+```text
 Deployment replicas: 3
 HPA minReplicas: 3
 PDB minAvailable: 2
@@ -4543,7 +4569,7 @@ kubectl get hpa -n micro-tier
 
 Expected output:
 
-```bash
+```text
 catalog-hpa
 carts-hpa
 checkout-hpa
@@ -4567,7 +4593,7 @@ kubectl get deployments -n micro-tier
 
 Example:
 
-```bash
+```text
 NAME           REFERENCE             TARGETS                        MINPODS   MAXPODS   REPLICAS
 carts-hpa      Deployment/carts      cpu: 1%/70%, memory: 41%/80%   3         12        3
 ```
@@ -4616,7 +4642,7 @@ The container has no resource requests.
 
 *** Sample Output: check-topology.sh ***
 
-```bash
+```text
 Kalyans-Mac-mini:18_Autoscaling_HPA kalyanreddy$ ./check-topology.sh 
 ╔════════════════════════════════════════════════════════════════════════════╗
 ║              POD TOPOLOGY DISTRIBUTION REPORT                              ║
@@ -4739,25 +4765,27 @@ kubectl get events -n micro-tier --sort-by=.lastTimestamp
 
 
 
-## 20. Install & Configure ArgoCD
+## 19. Install & Configure ArgoCD
+
+<img width="1678" height="852" alt="Image" src="https://github.com/user-attachments/assets/43641203-b7b0-4965-92a2-fd4e0f3e069b" />
 
 ArgoCD is used for GitOps-based deployment into the EKS cluster. Instead of manually applying every Kubernetes manifest with `kubectl apply`, ArgoCD watches this GitHub repository and keeps the cluster synchronized with the desired state stored in Git.
 
 For this project, ArgoCD currently deploys the ecommerce microservices from the AWS dataplane Kubernetes manifest directory:
 
-```bash
+```text
 Kubernetes_manifest/aws_dataplane_k8manifest
 ```
 
 The application workloads are deployed into the Kubernetes namespace:
 
-```yaml
+```text
 micro-tier
 ```
 
 The ArgoCD `Application` objects live in the ArgoCD namespace:
 
-```yaml
+```text
 argocd
 ```
 
@@ -4839,7 +4867,7 @@ kubectl get pods -n argocd
 
 Expected result:
 
-```bash
+```text
 argocd-application-controller    Running
 argocd-applicationset-controller Running
 argocd-dex-server                Running
@@ -4859,7 +4887,7 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 
 Open the UI:
 
-```bash
+```text
 https://localhost:8080
 ```
 
@@ -4873,26 +4901,9 @@ kubectl get secret argocd-initial-admin-secret \
 
 Login with:
 
-```bash
+```text
 Username: admin
 Password: <initial-admin-password>
-```
-
-### Create the Application Namespace
-
-The ecommerce services are deployed into `micro-tier`.
-
-Create the namespace manually:
-
-```bash
-kubectl create namespace micro-tier
-```
-
-The ArgoCD Application files also include this sync option:
-
-```yaml
-syncOptions:
-- CreateNamespace=true
 ```
 
 This allows ArgoCD to create the namespace if it does not already exist, but creating it manually first makes the deployment flow explicit.
@@ -4901,13 +4912,13 @@ This allows ArgoCD to create the namespace if it does not already exist, but cre
 
 The ArgoCD application manifests are stored in:
 
-```bash
+```text
 ArgoCd/
 ```
 
 Current application files:
 
-```bash
+```text
 ArgoCd/application-catalog.yaml
 ArgoCd/application-cart.yaml
 ArgoCd/application-checkout.yaml
@@ -5009,7 +5020,7 @@ This project currently uses raw Kubernetes manifests with ArgoCD.
 
 Current source:
 
-```bash
+```text
 Kubernetes_manifest/aws_dataplane_k8manifest
 ```
 
@@ -5051,7 +5062,7 @@ prod
 
 Each environment can have its own branch, manifest directory, or Helm values file. For now, the active GitOps source is the `main` branch and the AWS dataplane manifest directory.
 
-## 21. CI - Github Action to AWS ECR
+## 20. CI - Github Action to AWS ECR
 
 <img width="1296" height="707" alt="Image" src="https://github.com/user-attachments/assets/a9a3abf9-f864-43b3-96f1-a1cdfa80a331" />
 
@@ -5223,7 +5234,7 @@ CI is responsible for proving that the application code is healthy before it is 
 
 The CI workflow file is located at:
 
-```bash
+```text
 .github/workflows/ci.yml
 ```
 
@@ -5243,7 +5254,7 @@ Each microservice has its own GitHub Actions job. This is important because one 
 
 For example:
 
-```bash
+```text
 catalog   -> build/test
 cart      -> build/test/lint
 checkout  -> build/test/lint
@@ -5281,7 +5292,7 @@ This means every pull request is checked before merge, and the `main` branch is 
 
 The process looks like this:
 
-```bash
+```text
 Developer creates a branch
 Developer pushes code to GitHub
 Developer opens a pull request
@@ -5435,7 +5446,7 @@ git push origin test-ci
 
 Open GitHub and click:
 
-```bash
+```text
 Compare & pull request
 ```
 
@@ -5443,7 +5454,7 @@ After creating the pull request, go to the **Actions** tab or the pull request c
 
 You should see these jobs:
 
-```bash
+```text
 catalog - build and test
 cart - build, test, and lint
 checkout - build, test, and lint
@@ -5459,7 +5470,7 @@ After the CI workflow is stable, configure branch protection for `main`.
 
 In GitHub:
 
-```bash
+```text
 Settings -> Branches -> Branch protection rules
 ```
 
@@ -5493,7 +5504,7 @@ Those actions belong in a separate CD workflow. The next step is to create a sep
 
 
 
-## 22. Build And Push Docker Images To AWS ECR
+## 21. Build And Push Docker Images To AWS ECR
 
 <img width="1837" height="831" alt="Image" src="https://github.com/user-attachments/assets/9137830b-a3ee-4a3c-b573-ceaf7dd47c0f" />
 
@@ -5527,7 +5538,7 @@ It does not:
 
 The workflow file is located at:
 
-```bash
+```text
 .github/workflows/build-and-push-ecr.yml
 ```
 
@@ -5535,19 +5546,19 @@ The workflow file is located at:
 
 CI answers this question:
 
-```bash
+```text
 Is the code good enough to merge?
 ```
 
 The ECR image workflow answers this question:
 
-```bash
+```text
 Can this tested code be packaged into Docker images and stored in ECR?
 ```
 
 Deployment answers a different question, which we will handle later:
 
-```bash
+```text
 Should this image version be released to an environment?
 ```
 
@@ -5576,7 +5587,7 @@ workflow_dispatch:
 
 The automatic flow is:
 
-```bash
+```text
 Pull request passes CI
 Pull request is merged to main
 CI runs again on main
@@ -5591,7 +5602,7 @@ The workflow uses GitHub OIDC instead of long-lived AWS access keys.
 
 The role used by the workflow is:
 
-```bash
+```text
 arn:aws:iam::123456789:role/github-actions-oidc-role-ui3
 ```
 
@@ -5617,7 +5628,7 @@ What this means:
 
 This workflow expects these ECR repositories to already exist:
 
-```bash
+```text
 ecommerce-store/catalog
 ecommerce-store/cart
 ecommerce-store/checkout
@@ -5639,7 +5650,7 @@ Each image is tagged with the first seven characters of the Git commit SHA.
 
 Example:
 
-```bash
+```text
 123456789.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/catalog:a1b2c3d
 123456789.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/cart:a1b2c3d
 123456789.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/checkout:a1b2c3d
@@ -5687,7 +5698,7 @@ Each service defines:
 
 After committing and pushing the workflow, open GitHub, test it from the main branch if the workflow file is already merged there:
 
-```bash
+```text
 Actions -> Build and Push Images to ECR -> Run workflow
 ```
 
@@ -5695,7 +5706,7 @@ Select the branch and run it manually.
 
 Expected result:
 
-```bash
+```text
 build and push catalog
 build and push cart
 build and push checkout
@@ -5715,7 +5726,7 @@ aws ecr describe-images \
 
 Repeat for the other repositories:
 
-```bash
+```text
 ecommerce-store/cart
 ecommerce-store/checkout
 ecommerce-store/orders
@@ -5735,7 +5746,7 @@ At that point, we will decide whether to deploy with:
 The production deployment workflow should use the exact image tags created by this ECR workflow.
 
 
-## 23. Continuous Delivery / Deployment
+## 22. Continuous Delivery / Deployment
 
   - How image tags are promoted
  
@@ -5749,7 +5760,7 @@ The production deployment workflow should use the exact image tags created by th
 
 
 
-## 24. Observability
+## 23. Observability
 
 The observability stack provides visibility into infrastructure health, application behavior, service latency, errors, and distributed request flow.
 
@@ -5775,6 +5786,9 @@ Log aggregation
 
 ### Prometheus
 
+<img width="1879" height="714" alt="Image" src="https://github.com/user-attachments/assets/7a03afa4-cf1c-42fa-8966-a71a2bcee02e" />
+
+
 Prometheus-compatible metrics are exposed by each service and scraped from Kubernetes pods.
 
 Prometheus is used to collect:
@@ -5797,13 +5811,13 @@ Example PromQL queries:
 
 Request rate:
 
-```bash
+```promql
 sum(rate(checkout_requests_total[5m]))
 ```
 
 Checkout error rate:
 
-```bash
+```promql
 sum(rate(checkout_errors_total[5m]))
 /
 sum(rate(checkout_requests_total[5m]))
@@ -5811,7 +5825,7 @@ sum(rate(checkout_requests_total[5m]))
 
 Checkout p95 latency:
 
-```bash
+```promql
 histogram_quantile(
 0.95,
 sum(rate(checkout_submit_duration_seconds_bucket[5m])) by (le)
@@ -5820,19 +5834,19 @@ sum(rate(checkout_submit_duration_seconds_bucket[5m])) by (le)
 
 Orders created:
 
-```bash
+```promql
 increase(orders_created_total[1h])
 ```
 
 Cart items added:
 
-```bash
+```promql
 sum(rate(cart_items_added_total[5m]))
 ```
 
 Catalog request rate:
 
-```bash
+```promql
 sum(rate(catalog_requests_total[5m])) by (operation)
 ```
 
@@ -5843,6 +5857,12 @@ Grafana is used to visualize service health and business behavior.
 Dashboards should be organized around two views.
 
 Infrastructure dashboard:
+
+<img width="1910" height="868" alt="Image" src="https://github.com/user-attachments/assets/045cfc89-6d8c-47da-96ee-34a80dae7d5b" />
+
+<img width="1919" height="881" alt="Image" src="https://github.com/user-attachments/assets/c93d2499-5915-47a6-ab26-828fb784f4d1" />
+
+<img width="1919" height="822" alt="Image" src="https://github.com/user-attachments/assets/9a100e21-ddea-4372-92a4-783e6ab397a4" />
 
 ```text
 Node CPU and memory
@@ -5882,6 +5902,7 @@ JVM heap and GC
 
 The application dashboard should focus on SRE questions:
 
+
 ```text
 Is traffic increasing?
 
@@ -5916,6 +5937,15 @@ Did configuration or dependency access fail?
 
 ### AWS X-Ray
 
+<img width="1277" height="619" alt="Image" src="https://github.com/user-attachments/assets/d4e093e1-1185-4eaf-966b-dcf847dd3117" />
+
+<img width="1833" height="285" alt="Image" src="https://github.com/user-attachments/assets/c0f7d0b3-eea7-4e9e-b933-b874fb13c908" />
+
+<img width="1831" height="433" alt="Image" src="https://github.com/user-attachments/assets/910e587a-1d0a-4b54-9082-fc408d9817a8" />
+
+<img width="1833" height="464" alt="Image" src="https://github.com/user-attachments/assets/5e34b543-4c9a-4183-9db1-e3cfec71004b" />
+
+
 AWS X-Ray is used for distributed trace analysis.
 
 X-Ray helps identify latency and failure points across service calls.
@@ -5948,6 +5978,10 @@ Error spans
 ```
 
 ### OpenTelemetry
+
+<img width="1450" height="836" alt="Image" src="https://github.com/user-attachments/assets/58c5969b-6c97-4fd6-9553-80c936f93041" />
+
+For the checkout service
 
 OpenTelemetry provides the instrumentation and collection path for traces.
 
