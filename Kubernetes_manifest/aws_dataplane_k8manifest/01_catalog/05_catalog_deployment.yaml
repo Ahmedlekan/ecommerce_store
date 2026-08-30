@@ -106,7 +106,7 @@ spec:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
             runAsUser: 1000
-          image: "314146307160.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/catalog:c58ef6e"
+          image: "314146307160.dkr.ecr.us-east-1.amazonaws.com/ecommerce-store/catalog:95e9904"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

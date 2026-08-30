@@ -11,11 +11,162 @@ on:
       - main
 
 # CI only needs read access to the repository contents.
-# AWS/ECR/deployment permissions should be added later in separate CD workflows.
+# Security scanners use this read-only checkout to inspect source code, dependencies, Terraform, and Kubernetes manifests.
 permissions:
   contents: read
 
 jobs:
+  secret-scan:
+    # Secret scanning runs early because leaked credentials should block a merge immediately.
+    name: security - secret scan
+    runs-on: ubuntu-latest
+
+    steps:
+      # Download the repository code so Gitleaks can inspect committed files.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Gitleaks scans the Git history and working tree for hardcoded secrets, tokens, passwords, and keys.
+      # This is a hard gate because secrets should never be merged into main.
+      - name: Scan for committed secrets with Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-security:
+    # Dependency scanning checks third-party packages used by the microservices.
+    # It is report-only for the first implementation so existing findings can be reviewed and triaged before making it a hard gate.
+    name: security - dependency scan
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      # Download the repository code so language-specific scanners can inspect dependency manifests.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Node.js is required for Yarn audit against the checkout service dependency tree.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: yarn
+          cache-dependency-path: "Application Code/src/checkout/yarn.lock"
+
+      # Enable Corepack so the runner can use Yarn consistently with the checkout lockfile.
+      - name: Enable Corepack
+        run: corepack enable
+
+      # yarn audit checks JavaScript dependency vulnerabilities in the checkout service.
+      # The first pass is report-only; after the baseline is clean, remove continue-on-error from this job.
+      - name: Audit checkout Node.js dependencies
+        working-directory: "Application Code/src/checkout"
+        run: yarn audit --level high
+
+      # Go is required for govulncheck against the catalog service module.
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.5"
+          cache-dependency-path: "Application Code/src/catalog/go.sum"
+
+      # govulncheck reports known vulnerabilities reachable from the catalog Go code.
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Scan catalog Go dependencies
+        working-directory: "Application Code/src/catalog"
+        run: govulncheck ./...
+
+      # OWASP Dependency-Check scans Java dependency manifests for the cart, orders, and UI services.
+      - name: Scan Java dependencies with OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: ecommerce-store-java-services
+          path: "Application Code/src"
+          format: "HTML"
+          out: "dependency-check-report"
+          args: >
+            --scan "Application Code/src/cart/pom.xml"
+            --scan "Application Code/src/orders/pom.xml"
+            --scan "Application Code/src/ui/pom.xml"
+            --failOnCVSS 7
+
+      # Upload the dependency report so findings can be reviewed from the workflow run.
+      - name: Upload dependency scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: dependency-check-report
+
+  iac-security:
+    # Infrastructure and manifest scanning checks Terraform, Kubernetes YAML, and Dockerfiles.
+    # It is report-only initially because existing infrastructure often needs a baseline cleanup pass.
+    name: security - infrastructure and manifest scan
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      # Download the repository code so Checkov can inspect IaC and Kubernetes files.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Checkov scans Terraform, Kubernetes manifests, and Dockerfiles for insecure configuration.
+      # Examples: privileged containers, missing resource limits, broad IAM policies, and weak security contexts.
+      - name: Scan IaC, Kubernetes manifests, and Dockerfiles with Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: terraform,kubernetes,dockerfile
+          output_format: cli,sarif
+          output_file_path: console,checkov-results.sarif
+
+      # Upload SARIF so GitHub can retain the structured scan result.
+      - name: Upload Checkov SARIF report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-results
+          path: checkov-results.sarif
+
+  sonar-analysis:
+    # Sonar performs source-code quality and security analysis.
+    # It only runs when SONAR_TOKEN is configured in repository secrets.
+    name: security - sonar analysis
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    steps:
+      # Download full history because Sonar uses Git metadata for blame and analysis accuracy.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Run Sonar only after SONAR_TOKEN has been configured.
+      # Required repository variables for SonarCloud are SONAR_ORGANIZATION and SONAR_PROJECT_KEY.
+      - name: Run Sonar analysis
+        if: ${{ env.SONAR_TOKEN != '' }}
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.sources=Application Code/src
+            -Dsonar.exclusions=**/node_modules/**,**/target/**,**/dist/**,**/coverage/**
+
+      # Make the missing-token case explicit in the workflow logs instead of silently doing nothing.
+      - name: Explain skipped Sonar analysis
+        if: ${{ env.SONAR_TOKEN == '' }}
+        run: echo "SONAR_TOKEN is not configured, so Sonar analysis was skipped."
+
   catalog:
     # Catalog is the Go microservice.
     name: catalog - build and test

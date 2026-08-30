@@ -1,6 +1,6 @@
 # This workflow is the application's image publishing pipeline.
 # It builds Docker images for each microservice and pushes them to AWS ECR.
-name: Build and Push Images to ECR
+name: Release Images and Update Manifests
 
 # Run automatically after the CI workflow completes on the main branch.
 # This keeps image publishing separate from pull request validation.
@@ -16,11 +16,11 @@ on:
   # Allow manual runs from the GitHub Actions tab for testing or controlled rebuilds.
   workflow_dispatch:
 
-# Required for GitHub OIDC authentication with AWS.
-# contents: read lets the workflow checkout the repository.
+# Required for GitHub OIDC authentication with AWS and GitOps manifest updates.
+# contents: write lets the workflow commit the new Kubernetes image tags back to Git.
 # id-token: write lets GitHub request a short-lived AWS token.
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 # Shared values used by every job in this workflow.
@@ -31,7 +31,13 @@ env:
 jobs:
   build-and-push:
     # Only publish images if CI succeeded, or if the workflow was started manually.
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    # The commit-message guard prevents a GitOps image-tag commit from starting an endless CI -> ECR -> commit loop.
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event.workflow_run.conclusion == 'success' && !contains(github.event.workflow_run.head_commit.message, 'chore: update Kubernetes image tags')
+        ) }}
 
     # Each matrix entry builds and pushes one microservice image.
     name: build and push ${{ matrix.service }}
@@ -115,6 +121,17 @@ jobs:
           IMAGE_URI: ${{ steps.ecr-login.outputs.registry }}/${{ matrix.repository }}:${{ steps.image-tag.outputs.tag }}
         run: docker build -f "${{ matrix.dockerfile }}" -t "$IMAGE_URI" "${{ matrix.context }}"
 
+      # Scan the built image before it is pushed to ECR.
+      # If Trivy finds HIGH or CRITICAL vulnerabilities, this job fails and the image is not released.
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.ecr-login.outputs.registry }}/${{ matrix.repository }}:${{ steps.image-tag.outputs.tag }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
       # Push the image to ECR using the immutable commit-SHA tag.
       - name: Push Docker image to ECR
         env:
@@ -126,3 +143,102 @@ jobs:
         env:
           IMAGE_URI: ${{ steps.ecr-login.outputs.registry }}/${{ matrix.repository }}:${{ steps.image-tag.outputs.tag }}
         run: echo "Pushed $IMAGE_URI"
+
+  update-kubernetes-manifests:
+    # This job runs after all images are pushed.
+    # It updates the GitOps Kubernetes manifests with the exact image tag that was just published to ECR.
+    # ArgoCD will then detect this Git commit and roll the new images out to the EKS cluster.
+    name: update Kubernetes manifests with new image tags
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: ${{ needs.build-and-push.result == 'success' }}
+
+    steps:
+      # Checkout main because ArgoCD watches the main branch as the source of truth.
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      # Use the same source commit SHA that was used to tag the Docker images.
+      # This keeps the Kubernetes manifest image tags tied to the code that passed CI.
+      - name: Create image tag
+        id: image-tag
+        env:
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: echo "tag=${SOURCE_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      # AWS credentials are used here only to discover the AWS account ID.
+      # The registry is built as: <account>.dkr.ecr.<region>.amazonaws.com
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve ECR registry
+        id: ecr-registry
+        run: |
+          AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+          echo "registry=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com" >> "$GITHUB_OUTPUT"
+
+      # Update the image fields in the raw Kubernetes manifests.
+      # These are the AWS dataplane manifests currently used by ArgoCD.
+      - name: Update Kubernetes deployment image tags
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-registry.outputs.registry }}
+          IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          registry = os.environ["ECR_REGISTRY"]
+          tag = os.environ["IMAGE_TAG"]
+
+          deployments = {
+              "catalog": Path("Kubernetes_manifest/aws_dataplane_k8manifest/01_catalog/05_catalog_deployment.yaml"),
+              "cart": Path("Kubernetes_manifest/aws_dataplane_k8manifest/02_cart/03_cart_deployment.yaml"),
+              "checkout": Path("Kubernetes_manifest/aws_dataplane_k8manifest/03_checkout/03_checkout_deployment.yaml"),
+              "orders": Path("Kubernetes_manifest/aws_dataplane_k8manifest/04_orders/04_orders_deployment.yaml"),
+              "ui": Path("Kubernetes_manifest/aws_dataplane_k8manifest/05_ui/03_ui_deployment.yaml"),
+          }
+
+          for service, path in deployments.items():
+              image = f'{registry}/ecommerce-store/{service}:{tag}'
+              content = path.read_text()
+              updated = re.sub(
+                  rf'image:\s*".*/ecommerce-store/{service}:[^"]+"',
+                  f'image: "{image}"',
+                  content,
+              )
+
+              if updated == content:
+                  raise RuntimeError(f"Image field was not updated in {path}")
+
+              path.write_text(updated)
+              print(f"Updated {path} -> {image}")
+          PY
+
+      # Commit the manifest update back to main.
+      # The [skip ci] marker prevents the manifest-only commit from starting another CI/ECR cycle.
+      - name: Commit and push manifest changes
+        env:
+          IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add Kubernetes_manifest/aws_dataplane_k8manifest
+
+          if git diff --cached --quiet; then
+            echo "Kubernetes manifests already use image tag ${IMAGE_TAG}; nothing to commit."
+            exit 0
+          fi
+
+          git commit -m "chore: update Kubernetes image tags to ${IMAGE_TAG} [skip ci]"
+          git push origin main
+
+
+          
