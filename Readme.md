@@ -1,5 +1,7 @@
 # Production-Ready DevSecOps Platform for a Microservices E-Commerce Application on AWS
 
+<img width="1536" height="1024" alt="Image" src="https://github.com/user-attachments/assets/fb237fac-583a-4329-9e2e-0ac4d3b6d5f5" />
+
 ## Project Summary
 
 This project demonstrates how to design, build, secure, deploy, and monitor a cloud-native microservices e-commerce application using modern DevSecOps practices.
@@ -144,7 +146,7 @@ ecommerce_store/
 |       |-- orders/
 |       |-- ui/
 |
-|-- Terraform/
+|-- AWS/Terraform/
 |   |-- shared/
 |   |   |-- backend/
 |   |   |-- vpc/
@@ -155,16 +157,15 @@ ecommerce_store/
 |       |-- cluster-and-addons/
 |       |-- app-dataplane/
 |
-|-- Kubernetes_manifest/
-|   |-- catalog/
-|   |-- cart/
-|   |-- checkout/
-|   |-- orders/
-|   |-- ui/
+|-- AWS/Kubernetes_manifest/
+|   |-- aws_dataplane_k8manifest/
+|   |-- statefulset_k8manifest/
+|   |-- aws_dataplane_verification_pod/
 |   |-- ingress/
-|   |-- verification-pods/
+|   |-- HPA/
+|   |-- PDB/
 |
-|-- Helm_ecommerce_store/
+|-- AWS/Helm_ecommerce_store/
 |   |-- ecommercestore_apps/
 |   |   |-- values-cart.yaml
 |   |   |-- values-catalog.yaml
@@ -176,24 +177,31 @@ ecommerce_store/
 |       |-- catalog_chart/
 |       |-- ui_chart/
 |
-|-- Observability/
+|-- AWS/Observability/
 |   |-- OpenTelemetry_terraform/
 |   |-- OpenTelemetry_AMP_AMG/
 |   |-- OpenTelemetry_logs/
 |   |-- Opentelemetry_Traces/
 |   |-- Grafana_dashboards/
 |
-|-- AIOPS/
+|-- AWS/AIOPS/
 |   |-- Schemas/
 |   |-- Terraform/
 |   |-- bedrock-agent/
+|
+|-- AWS/docs/
+|   |-- EKS_POD_TROUBLESHOOTING_RUNBOOK.md
+|
+|-- AZURE/
+|   |-- Terraform/
+|   |-- Kubernetes_manifest/
+|   |-- Observability/
+|   |-- GitHub_Actions/
 |
 |-- .github/
 |   |-- workflows/
 |       |-- ci.yml
 |       |-- build-and-push-ecr.yml
-|
-|-- docs/
 |
 |-- Readme.md
 |-- .gitignore
@@ -209,13 +217,14 @@ ecommerce_store/
 | Application Code/src/checkout/ | Checkout workflow service. |
 | Application Code/src/orders/ | Order management service. |
 | Application Code/src/ui/ | User-facing frontend or UI service. |
-| Terraform/ | Contains Infrastructure as Code used to provision AWS resources such as VPC, EKS, IAM roles, add-ons, databases, queues, and other supporting services. |
-| Kubernetes_manifest/ | Contains raw Kubernetes manifests for deploying workloads, services, ingress, service accounts, secrets integration, and verification pods. |
-| Helm_ecommerce_store/ | Contains Helm charts and values files used to package and deploy the application in a reusable and environment-specific way. |
-| Observability/ | Contains OpenTelemetry, ADOT, AMP, AMG, log, trace, and Grafana dashboard configuration. |
-| AIOPS/ | Contains experimental/future AIOps contracts, Terraform, and Bedrock-related evidence collection components. |
+| AWS/Terraform/ | Contains Infrastructure as Code used to provision AWS resources such as VPC, EKS, IAM roles, add-ons, databases, queues, and other supporting services. |
+| AWS/Kubernetes_manifest/ | Contains raw Kubernetes manifests for deploying workloads, services, ingress, service accounts, secrets integration, and verification pods. |
+| AWS/Helm_ecommerce_store/ | Contains Helm charts and values files used to package and deploy the application in a reusable and environment-specific way. |
+| AWS/Observability/ | Contains OpenTelemetry, ADOT, AMP, AMG, log, trace, and Grafana dashboard configuration. |
+| AWS/AIOPS/ | Contains experimental/future AIOps contracts, Terraform, and Bedrock-related evidence collection components. |
+| AWS/docs/ | Stores AWS-specific runbooks and operational documentation. |
+| AZURE/ | Contains the Azure-specific project structure for future AKS, Azure Kubernetes manifests, Azure observability, and Azure workflow templates. |
 | .github/workflows/ | Contains GitHub Actions workflows for CI checks, Docker image builds, Amazon ECR publishing, and future deployment automation. |
-| docs/ | Stores supporting documentation, diagrams, notes, and additional project references. |
 | Readme.md | Main project documentation and operational guide. |
 
 This structure supports a clean production workflow where application development, infrastructure provisioning, Kubernetes deployment, and CI/CD automation are managed independently but work together as one complete DevSecOps platform.
@@ -343,7 +352,7 @@ This section explains how to run, test, and build the application locally before
 ### Clone The Repository
 
 ```bash
-  git clone https://github.com/<github-username>/ecommerce_store.git
+  git clone https://github.com/ahmedlekan/ecommerce_store.git
   cd ecommerce_store
 ```
 
@@ -671,7 +680,7 @@ Terraform is responsible for:
 ### Terraform Directory Layout
 
 ```text
-Terraform/
+AWS/Terraform/
   shared/
     backend/
       s3-backend-bucket.tf
@@ -753,11 +762,11 @@ Those belong to the AWS dataplane deployment path, not the StatefulSet deploymen
 Terraform should be applied in this order:
 
 ```text
-1. Terraform/shared/backend
-2. Terraform/shared/vpc/terraform-manifests
-3. Terraform/eks-statefulset_and_addons
-4. Kubernetes_manifest/00_namespace_micro-tier.yaml
-5. Kubernetes_manifest/statefulset_k8manifest/
+1. AWS/Terraform/shared/backend
+2. AWS/Terraform/shared/vpc/terraform-manifests
+3. AWS/Terraform/eks-statefulset_and_addons
+4. AWS/Kubernetes_manifest/00_namespace_micro-tier.yaml
+5. AWS/Kubernetes_manifest/statefulset_k8manifest/
 ```
 
 ### Backend Provisioning
@@ -765,7 +774,7 @@ Terraform should be applied in this order:
 Create the backend resources first:
 
 ```bash
-cd Terraform/shared/backend
+cd AWS/Terraform/shared/backend
 
 terraform init
 terraform validate
@@ -780,7 +789,7 @@ The backend stores Terraform state remotely so the infrastructure state is not k
 
 The VPC must be created before EKS because the EKS cluster and node groups need private subnets.
 
-cd Terraform/shared/vpc/terraform-manifests
+cd AWS/Terraform/shared/vpc/terraform-manifests
 
 ```bash
 terraform init
@@ -802,7 +811,7 @@ The EKS StatefulSet Terraform root reads these outputs through Terraform remote 
 After the VPC is available, create the EKS cluster and required add-ons:
 
 ```bash
-cd Terraform/eks-statefulset_and_addons
+cd AWS/Terraform/eks-statefulset_and_addons
 
 terraform init
 terraform validate
@@ -1388,7 +1397,7 @@ This deployment mode is different from the StatefulSet deployment mode. In the S
 ### Terraform Directory Layout
 
 ```text
-Terraform/
+AWS/Terraform/
 shared/
   backend/
     s3-backend-bucket.tf
@@ -1406,10 +1415,10 @@ eks-aws-dataplane/
 
 | Folder | Purpose |
 |---|---|
-| Terraform/shared/backend | Creates the S3 bucket used for Terraform remote state |
-| Terraform/shared/vpc | Creates the shared VPC, public subnets, private subnets, route tables, internet gateway, and NAT gateways |
-| Terraform/eks-aws-dataplane/cluster-and-addons | Creates the EKS cluster, managed node groups, IAM roles, and required EKS add-ons |
-| Terraform/eks-aws-dataplane/app-dataplane | Creates AWS-managed resources used by the application services |
+| AWS/Terraform/shared/backend | Creates the S3 bucket used for Terraform remote state |
+| AWS/Terraform/shared/vpc | Creates the shared VPC, public subnets, private subnets, route tables, internet gateway, and NAT gateways |
+| AWS/Terraform/eks-aws-dataplane/cluster-and-addons | Creates the EKS cluster, managed node groups, IAM roles, and required EKS add-ons |
+| AWS/Terraform/eks-aws-dataplane/app-dataplane | Creates AWS-managed resources used by the application services |
 
 
 ### What Terraform Provisions
@@ -1433,12 +1442,12 @@ eks-aws-dataplane/
 The AWS infrastructure deployment should be applied in this order:
 
 ```text
-1. Terraform/shared/backend
-2. Terraform/shared/vpc/terraform-manifests
-3. Terraform/eks-aws-dataplane/cluster-and-addons
-4. Terraform/eks-aws-dataplane/app-dataplane
-5. Kubernetes_manifest/00_namespace_micro-tier.yaml
-6. Kubernetes_manifest/aws_dataplane_k8manifest/
+1. AWS/Terraform/shared/backend
+2. AWS/Terraform/shared/vpc/terraform-manifests
+3. AWS/Terraform/eks-aws-dataplane/cluster-and-addons
+4. AWS/Terraform/eks-aws-dataplane/app-dataplane
+5. AWS/Kubernetes_manifest/00_namespace_micro-tier.yaml
+6. AWS/Kubernetes_manifest/aws_dataplane_k8manifest/
 ```
 
 ### VPC Provisioning
@@ -1446,7 +1455,7 @@ The AWS infrastructure deployment should be applied in this order:
 Create the shared VPC before creating EKS or application dataplane resources:
 
 ```bash
-cd Terraform/shared/vpc/terraform-manifests
+cd AWS/Terraform/shared/vpc/terraform-manifests
 
 terraform init
 terraform validate
@@ -1476,7 +1485,7 @@ Common outputs include:
 After the VPC is available, provision the EKS cluster and required platform add-ons:
 
 ```bash
-cd Terraform/eks-aws-dataplane/cluster-and-addons
+cd AWS/Terraform/eks-aws-dataplane/cluster-and-addons
 
 terraform init
 terraform validate
@@ -1514,7 +1523,7 @@ kubectl get pods -n kube-system
 ### Provision AWS Application Dataplane
 
 ```bash
-cd Terraform/eks-aws-dataplane/app-dataplane
+cd AWS/Terraform/eks-aws-dataplane/app-dataplane
 
 terraform init
 terraform validate
@@ -1555,7 +1564,7 @@ Use these values to confirm that the Kubernetes ConfigMaps match the actual AWS 
 ### Create Namespace
 
 ```bash
-kubectl apply -f Kubernetes_manifest/00_namespace_micro-tier.yaml
+kubectl apply -f AWS/Kubernetes_manifest/00_namespace_micro-tier.yaml
 
 kubectl get namespace micro-tier
 ```
@@ -1563,11 +1572,11 @@ kubectl get namespace micro-tier
 ## 12. Deploy AWS Dataplane Manifests
 
 ```bash
-kubectl apply -f Kubernetes_manifest/aws_dataplane_k8manifest/ -n micro-tier
+kubectl apply -f AWS/Kubernetes_manifest/aws_dataplane_k8manifest/ -n micro-tier
 
 # Deploy ingress after services exist:
 
-kubectl apply -f Kubernetes_manifest/ingress/ -n micro-tier
+kubectl apply -f AWS/Kubernetes_manifest/ingress/ -n micro-tier
 ```
 
 Verify workloads:
@@ -1638,7 +1647,7 @@ RETAIL_ORDERS_PERSISTENCE_PASSWORD
 Apply the catalog MySQL verification pod:
 
 ```bash
-kubectl apply -f Kubernetes_manifest/aws_dataplane_verification_pod/01_catalog_mysql_client_pod.yaml -n micro-tier
+kubectl apply -f AWS/Kubernetes_manifest/aws_dataplane_verification_pod/01_catalog_mysql_client_pod.yaml -n micro-tier
 ```
 
 Connect to the pod:
@@ -1675,7 +1684,7 @@ EXIT;
 Apply the DynamoDB verification pod:
 
 ```bash
-kubectl apply -f Kubernetes_manifest/aws_dataplane_verification_pod/02_cart_dynamodb_awscli_pod.yaml -n micro-tier
+kubectl apply -f AWS/Kubernetes_manifest/aws_dataplane_verification_pod/02_cart_dynamodb_awscli_pod.yaml -n micro-tier
 ```
 
 Connect:
@@ -1703,7 +1712,7 @@ aws dynamodb scan \
 Apply the Redis verification pod:
 
 ```bash
-kubectl apply -f Kubernetes_manifest/
+kubectl apply -f AWS/Kubernetes_manifest/
 aws_dataplane_verification_pod/03_checkout_elasticache_redis_client_pod.yaml -n micro-tier
 ```
 
@@ -1735,7 +1744,7 @@ PONG
 Apply the PostgreSQL verification pod:
 
 ```bash
-kubectl apply -f Kubernetes_manifest/aws_dataplane_verification_pod/04_orders_postgresql_client_pod.yaml -n micro-tier
+kubectl apply -f AWS/Kubernetes_manifest/aws_dataplane_verification_pod/04_orders_postgresql_client_pod.yaml -n micro-tier
 ```
 
 Connect:
@@ -1768,7 +1777,7 @@ SELECT COUNT(*) FROM orders;
 Apply the SQS verification pod:
 
 ```bash
-kubectl apply -f Kubernetes_manifest/aws_dataplane_verification_pod/05_orders_sqs_awscli_pod.yaml -n micro-tier
+kubectl apply -f AWS/Kubernetes_manifest/aws_dataplane_verification_pod/05_orders_sqs_awscli_pod.yaml -n micro-tier
 ```
 
 Connect:
@@ -1802,7 +1811,7 @@ aws sqs receive-message \
 ### Cleanup Verification Pods
 
 ```bash
-kubectl delete -f Kubernetes_manifest/aws_dataplane_verification_pod/ -n micro-tier
+kubectl delete -f AWS/Kubernetes_manifest/aws_dataplane_verification_pod/ -n micro-tier
 ```
 
 ### Troubleshooting Checklist
@@ -1910,7 +1919,7 @@ The main resources are:
 |   |-- c4-outputs.tf
 |   |-- terraform.tfvars
 |
-|-- Terraform/eks-statefulset_and_addons/
+|-- AWS/Terraform/eks-statefulset_and_addons/
 |   |-- c1_versions.tf
 |   |-- c2_variables.tf
 |   |-- c3_remote-state.tf
@@ -1928,7 +1937,7 @@ The main resources are:
 |   |-- c17-xx-externaldns-*.tf
 |   |-- terraform.tfvars
 |
-|-- Karpenter/KARPENTER_terraform-manifests/
+|-- AWS/Karpenter/KARPENTER_terraform-manifests/
 |   |-- c1_versions.tf
 |   |-- c2_variables.tf
 |   |-- c3_01_vpc_remote_state.tf
@@ -1945,7 +1954,7 @@ The main resources are:
 |   |-- c6_08_karpenter_eventbridge_rules.tf
 |   |-- terraform.tfvars
 |
-|-- Karpenter/KAPERNTER_k8_manifests/
+|-- AWS/Karpenter/KAPERNTER_k8_manifests/
 |   |-- 01_ec2nodeclass.yaml
 |   |-- 02_nodepool_ondemand.yaml
 |   |-- 03_nodepool_spot.yaml
@@ -1997,7 +2006,7 @@ Subnet outputs
 ### Step 2: Deploy EKS Cluster And Add-ons
 
 ```bash
-cd Terraform/eks-statefulset_and_addons/
+cd AWS/Terraform/eks-statefulset_and_addons/
 
 terraform init
 terraform validate
@@ -2038,7 +2047,7 @@ kubectl get pods -n kube-system
 ### Step 3: Deploy Karpenter Infrastructure
 
 ```bash
-cd Karpenter/KARPENTER_terraform-manifests/
+cd AWS/Karpenter/KARPENTER_terraform-manifests/
 
 terraform init
 terraform validate
@@ -4313,8 +4322,8 @@ In this project, Metrics Server is installed as an EKS add-on using Terraform.
 Terraform files:
 
 ```text
-Terraform/eks-statefulset_and_addons/c18_eksaddon_metrics_server.tf
-Terraform/eks-aws-dataplane/cluster-and-addons/c16_eksaddon_metrics_server.tf
+AWS/Terraform/eks-statefulset_and_addons/c18_eksaddon_metrics_server.tf
+AWS/Terraform/eks-aws-dataplane/cluster-and-addons/c16_eksaddon_metrics_server.tf
 ```
 
 Verify Metrics Server:
@@ -4338,17 +4347,17 @@ If kubectl top does not work, HPA will not be able to calculate CPU or memory ut
 The HPA manifests are stored in a shared folder so both deployment paths can use them:
 
 ```text
-Kubernetes_manifest/HPA/
+AWS/Kubernetes_manifest/HPA/
 ```
 
 Files:
 
 ```text
-Kubernetes_manifest/HPA/01_catalog_hpa.yaml
-Kubernetes_manifest/HPA/02_carts_hpa.yaml
-Kubernetes_manifest/HPA/03_checkout_hpa.yaml
-Kubernetes_manifest/HPA/04_orders_hpa.yaml
-Kubernetes_manifest/HPA/05_ui_hpa.yaml
+AWS/Kubernetes_manifest/HPA/01_catalog_hpa.yaml
+AWS/Kubernetes_manifest/HPA/02_carts_hpa.yaml
+AWS/Kubernetes_manifest/HPA/03_checkout_hpa.yaml
+AWS/Kubernetes_manifest/HPA/04_orders_hpa.yaml
+AWS/Kubernetes_manifest/HPA/05_ui_hpa.yaml
 ```
 
 These HPA resources target the application Deployments:
@@ -4546,17 +4555,17 @@ Pending pods are scheduled
 Apply the application manifests first, then apply PDB and HPA.
 
 ```bash
-kubectl apply -f Kubernetes_manifest/aws_dataplane_k8manifest/
-kubectl apply -f Kubernetes_manifest/PDB/
-kubectl apply -f Kubernetes_manifest/HPA/
+kubectl apply -f AWS/Kubernetes_manifest/aws_dataplane_k8manifest/
+kubectl apply -f AWS/Kubernetes_manifest/PDB/
+kubectl apply -f AWS/Kubernetes_manifest/HPA/
 ```
 
 For the statefulset deployment path:
 
 ```bash
-kubectl apply -f Kubernetes_manifest/statefulset_k8manifest/
-kubectl apply -f Kubernetes_manifest/PDB/
-kubectl apply -f Kubernetes_manifest/HPA/
+kubectl apply -f AWS/Kubernetes_manifest/statefulset_k8manifest/
+kubectl apply -f AWS/Kubernetes_manifest/PDB/
+kubectl apply -f AWS/Kubernetes_manifest/HPA/
 ```
 
 ### Verify HPA
@@ -4774,7 +4783,7 @@ ArgoCD is used for GitOps-based deployment into the EKS cluster. Instead of manu
 For this project, ArgoCD currently deploys the ecommerce microservices from the AWS dataplane Kubernetes manifest directory:
 
 ```text
-Kubernetes_manifest/aws_dataplane_k8manifest
+AWS/Kubernetes_manifest/aws_dataplane_k8manifest
 ```
 
 The application workloads are deployed into the Kubernetes namespace:
@@ -4913,17 +4922,17 @@ This allows ArgoCD to create the namespace if it does not already exist, but cre
 The ArgoCD application manifests are stored in:
 
 ```text
-ArgoCd/
+AWS/ArgoCd/
 ```
 
 Current application files:
 
 ```text
-ArgoCd/application-catalog.yaml
-ArgoCd/application-cart.yaml
-ArgoCd/application-checkout.yaml
-ArgoCd/application-orders.yaml
-ArgoCd/application-ui.yaml
+AWS/ArgoCd/application-catalog.yaml
+AWS/ArgoCd/application-cart.yaml
+AWS/ArgoCd/application-checkout.yaml
+AWS/ArgoCd/application-orders.yaml
+AWS/ArgoCd/application-ui.yaml
 ```
 
 Each file tells ArgoCD:
@@ -4942,11 +4951,11 @@ Each file tells ArgoCD:
 
 | Microservice | ArgoCD Application File | Manifest Path |
 |---|---|---|
-| catalog | `ArgoCd/application-catalog.yaml` | `Kubernetes_manifest/aws_dataplane_k8manifest/01_catalog` |
-| cart | `ArgoCd/application-cart.yaml` | `Kubernetes_manifest/aws_dataplane_k8manifest/02_cart` |
-| checkout | `ArgoCd/application-checkout.yaml` | `Kubernetes_manifest/aws_dataplane_k8manifest/03_checkout` |
-| orders | `ArgoCd/application-orders.yaml` | `Kubernetes_manifest/aws_dataplane_k8manifest/04_orders` |
-| ui | `ArgoCd/application-ui.yaml` | `Kubernetes_manifest/aws_dataplane_k8manifest/05_ui` |
+| catalog | `AWS/ArgoCd/application-catalog.yaml` | `AWS/Kubernetes_manifest/aws_dataplane_k8manifest/01_catalog` |
+| cart | `AWS/ArgoCd/application-cart.yaml` | `AWS/Kubernetes_manifest/aws_dataplane_k8manifest/02_cart` |
+| checkout | `AWS/ArgoCd/application-checkout.yaml` | `AWS/Kubernetes_manifest/aws_dataplane_k8manifest/03_checkout` |
+| orders | `AWS/ArgoCd/application-orders.yaml` | `AWS/Kubernetes_manifest/aws_dataplane_k8manifest/04_orders` |
+| ui | `AWS/ArgoCd/application-ui.yaml` | `AWS/Kubernetes_manifest/aws_dataplane_k8manifest/05_ui` |
 
 ### Example UI Application
 
@@ -4962,7 +4971,7 @@ project: default
 source:
   repoURL: https://github.com/Ahmedlekan/ecommerce_store.git
   targetRevision: main
-  path: Kubernetes_manifest/aws_dataplane_k8manifest/05_ui
+  path: AWS/Kubernetes_manifest/aws_dataplane_k8manifest/05_ui
 
 destination:
   server: https://kubernetes.default.svc
@@ -4981,7 +4990,7 @@ syncPolicy:
 Apply all ArgoCD Application manifests:
 
 ```bash
-kubectl apply -f ArgoCd/
+kubectl apply -f AWS/ArgoCd/
 ```
 
 Verify that ArgoCD created the applications:
@@ -5021,7 +5030,7 @@ This project currently uses raw Kubernetes manifests with ArgoCD.
 Current source:
 
 ```text
-Kubernetes_manifest/aws_dataplane_k8manifest
+AWS/Kubernetes_manifest/aws_dataplane_k8manifest
 ```
 
 The Helm charts still exist in the repository, but they are not the active deployment source for ArgoCD at this stage.
@@ -5130,8 +5139,8 @@ echo "IAM Role Name: $ROLE_NAME"
 ### Generate Trust Policy
 
 ```bash
-# Generate trust-policy.json with automatic variable substitution
-cat > trust-policy.json <<EOF
+# Generate AWS/trust-policy.json with automatic variable substitution
+cat > AWS/trust-policy.json <<EOF
 {
 "Version": "2012-10-17",
 "Statement": [
@@ -5153,7 +5162,7 @@ EOF
 
 # Verify the generated file
 echo "Trust policy created. Contents:"
-cat trust-policy.json
+cat AWS/trust-policy.json
 ```
 
 ***What this does***: Allows GitHub Actions from your repository to assume this IAM role using OIDC tokens (no AWS keys needed!)
@@ -5162,12 +5171,12 @@ cat trust-policy.json
 
 ```bash
 # Verify the trust policy before creating role
-cat trust-policy.json | jq '.'
+cat AWS/trust-policy.json | jq '.'
 
 # Create the IAM role
 aws iam create-role \
 --role-name $ROLE_NAME \
---assume-role-policy-document file://trust-policy.json
+--assume-role-policy-document file://AWS/trust-policy.json
 
 # Expected output:
 # {

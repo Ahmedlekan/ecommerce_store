@@ -198,11 +198,11 @@ jobs:
           tag = os.environ["IMAGE_TAG"]
 
           deployments = {
-              "catalog": Path("Kubernetes_manifest/aws_dataplane_k8manifest/01_catalog/05_catalog_deployment.yaml"),
-              "cart": Path("Kubernetes_manifest/aws_dataplane_k8manifest/02_cart/03_cart_deployment.yaml"),
-              "checkout": Path("Kubernetes_manifest/aws_dataplane_k8manifest/03_checkout/03_checkout_deployment.yaml"),
-              "orders": Path("Kubernetes_manifest/aws_dataplane_k8manifest/04_orders/04_orders_deployment.yaml"),
-              "ui": Path("Kubernetes_manifest/aws_dataplane_k8manifest/05_ui/03_ui_deployment.yaml"),
+              "catalog": Path("AWS/Kubernetes_manifest/aws_dataplane_k8manifest/01_catalog/05_catalog_deployment.yaml"),
+              "cart": Path("AWS/Kubernetes_manifest/aws_dataplane_k8manifest/02_cart/03_cart_deployment.yaml"),
+              "checkout": Path("AWS/Kubernetes_manifest/aws_dataplane_k8manifest/03_checkout/03_checkout_deployment.yaml"),
+              "orders": Path("AWS/Kubernetes_manifest/aws_dataplane_k8manifest/04_orders/04_orders_deployment.yaml"),
+              "ui": Path("AWS/Kubernetes_manifest/aws_dataplane_k8manifest/05_ui/03_ui_deployment.yaml"),
           }
 
           for service, path in deployments.items():
@@ -230,7 +230,7 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          git add Kubernetes_manifest/aws_dataplane_k8manifest
+          git add AWS/Kubernetes_manifest/aws_dataplane_k8manifest
 
           if git diff --cached --quiet; then
             echo "Kubernetes manifests already use image tag ${IMAGE_TAG}; nothing to commit."
