@@ -1,9 +1,8 @@
 Production-Ready DevSecOps Platform for a Microservices E-Commerce Application on AWS
 
-<img width="1644" height="957" alt="Image" src="https://github.com/user-attachments/assets/cce062c3-fe45-46d7-9cbe-e72b87b36825" />
+<img width="1536" height="1024" alt="Image" src="https://github.com/user-attachments/assets/fb237fac-583a-4329-9e2e-0ac4d3b6d5f5" />
 
 Production-Ready DevSecOps Platform for a Microservices E-Commerce Application on Microsoft Azure
-
 
 This folder contains the AWS and Azure infrastructure, Kubernetes manifests, observability configuration, GitOps configuration, Helm assets, and AIOps work for the ecommerce platform.
 
